@@ -24,7 +24,7 @@ const SECTION_HEADER: Record<
   overview: {
     title: "Dashboard",
     subtitle:
-      "Welcome back. Here’s what’s happening with your operations today.",
+      "Welcome back. Here is what is happening with your operations today.",
   },
   analytics: {
     title: "Real-time analytics",
