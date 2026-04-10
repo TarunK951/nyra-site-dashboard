@@ -380,48 +380,46 @@ export function NyraDashboard() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 border-b border-[var(--border)] bg-[var(--background)] px-3 pb-4 pt-4 sm:px-5">
-          <div className="mx-auto flex max-w-[1600px] flex-col gap-5">
-            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <button
-                type="button"
-                className="neu-surface-inset flex h-11 min-h-[44px] w-full min-w-0 flex-1 items-center gap-3 rounded-xl py-2.5 pl-4 pr-3 text-left text-[13px] text-[var(--foreground-secondary)] sm:min-w-0 lg:max-w-3xl"
-                aria-label="Search (demo)"
-              >
-                <span className="pointer-events-none flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--foreground-secondary)]">
-                  <SearchIcon />
-                </span>
-                <span className="min-w-0 flex-1 truncate pr-1">
-                  Search console, workflows…
-                </span>
-              </button>
-              <div className="flex shrink-0 items-center justify-end sm:justify-end">
-                <ThemeToggle />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-              <div className="min-w-0">
-                <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-3xl">
-                  {header.title}
-                </h1>
-                <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
-                  {header.subtitle}
-                </p>
-              </div>
-              <div className="shrink-0 pt-1 sm:pt-0 sm:text-right">
-                <p className="text-[11px] font-medium text-[var(--foreground-secondary)]">
-                  Environment
-                </p>
-                <p className="text-sm font-semibold text-[var(--trend-up)]">
-                  Production
-                </p>
-              </div>
+        <header className="shrink-0 border-b border-[var(--border)] bg-[var(--background)] px-3 py-3 sm:px-5">
+          <div className="mx-auto flex max-w-[1600px] min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <button
+              type="button"
+              className="neu-surface-inset flex h-11 min-h-[44px] w-full min-w-0 flex-1 items-center gap-3 rounded-xl py-2.5 pl-4 pr-3 text-left text-[13px] text-[var(--foreground-secondary)] sm:min-w-0 lg:max-w-3xl"
+              aria-label="Search (demo)"
+            >
+              <span className="pointer-events-none flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--foreground-secondary)]">
+                <SearchIcon />
+              </span>
+              <span className="min-w-0 flex-1 truncate pr-1">
+                Search console, workflows…
+              </span>
+            </button>
+            <div className="flex shrink-0 items-center justify-end sm:justify-end">
+              <ThemeToggle />
             </div>
           </div>
         </header>
 
         <main className="dashboard-scroll min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-y-contain p-3 sm:p-4 md:space-y-8 md:p-6">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-3xl">
+                {header.title}
+              </h1>
+              <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
+                {header.subtitle}
+              </p>
+            </div>
+            <div className="shrink-0 pt-1 sm:pt-0 sm:text-right">
+              <p className="text-[11px] font-medium text-[var(--foreground-secondary)]">
+                Environment
+              </p>
+              <p className="text-sm font-semibold text-[var(--trend-up)]">
+                Production
+              </p>
+            </div>
+          </div>
+
           {active === "overview" ? (
             <>
               <section>
