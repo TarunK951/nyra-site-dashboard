@@ -274,18 +274,18 @@ export function NyraDashboard() {
             : "w-[var(--sidebar-expanded)] min-w-[var(--sidebar-expanded)]"
         }`}
       >
-        <div className="shrink-0 p-3">
+        <div className="shrink-0 border-b border-[var(--border)] px-3 pb-3 pt-3">
           <div
-            className={`neu-surface rounded-xl ${
+            className={
               sidebarCollapsed
-                ? "flex items-center justify-center px-2 py-2.5"
-                : "flex items-center gap-3 px-3 py-3"
-            }`}
+                ? "flex flex-col items-center gap-2.5"
+                : "flex items-center gap-2.5"
+            }
           >
             <button
               type="button"
               onClick={() => setSidebarCollapsed((c) => !c)}
-              className="neu-surface-inset flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--foreground)] transition hover:opacity-90"
+              className="neu-surface-inset flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--foreground)] transition hover:opacity-90"
               aria-expanded={!sidebarCollapsed}
               aria-controls="dashboard-sidebar-nav"
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -293,25 +293,27 @@ export function NyraDashboard() {
               <ChevronIcon collapsed={sidebarCollapsed} />
             </button>
             {!sidebarCollapsed && (
-              <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                <div className="relative h-9 w-14 shrink-0">
-                  <Image
-                    src="/nyraai-logo.png"
-                    alt=""
-                    width={120}
-                    height={48}
-                    className="h-9 w-14 object-contain object-left"
-                    priority
-                    aria-hidden
-                  />
-                </div>
-                <div className="min-w-0 flex-1 leading-tight">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                    NyraAI
-                  </p>
-                  <p className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
-                    Console
-                  </p>
+              <div className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="relative h-9 w-14 shrink-0">
+                    <Image
+                      src="/nyraai-logo.png"
+                      alt=""
+                      width={120}
+                      height={48}
+                      className="h-9 w-14 object-contain object-left"
+                      priority
+                      aria-hidden
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
+                      NyraAI
+                    </p>
+                    <p className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
+                      Console
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -320,7 +322,7 @@ export function NyraDashboard() {
 
         <nav
           id="dashboard-sidebar-nav"
-          className="dashboard-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 py-1"
+          className="dashboard-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 py-3"
           aria-label="Primary"
         >
           {nav.map((item) => (
