@@ -78,8 +78,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-theme="light"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="h-svh min-h-0 overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
         <Script
           id="nyra-theme-init"
