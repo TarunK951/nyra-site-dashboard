@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -13,6 +14,44 @@ const nav = [
   { id: "insights", label: "Insights", icon: "✦" },
   { id: "security", label: "Security", icon: "◎" },
 ] as const;
+
+export type NavId = (typeof nav)[number]["id"];
+
+const SECTION_HEADER: Record<
+  NavId,
+  { title: string; subtitle: string }
+> = {
+  overview: {
+    title: "Dashboard",
+    subtitle:
+      "Welcome back. Here’s what’s happening with your operations today.",
+  },
+  analytics: {
+    title: "Real-time analytics",
+    subtitle:
+      "Live throughput, latency, and adoption across your NyraAI workspace.",
+  },
+  workflows: {
+    title: "Workflows",
+    subtitle: "Automations, handoffs, and deployment status (demo).",
+  },
+  insights: {
+    title: "Insights",
+    subtitle: "Model and business signals curated for operators (demo).",
+  },
+  security: {
+    title: "Security",
+    subtitle: "Policies, access, and audit posture for this console (demo).",
+  },
+};
+
+function parseSection(searchParams: URLSearchParams): NavId {
+  const raw = searchParams.get("section");
+  if (raw && nav.some((n) => n.id === raw)) {
+    return raw as NavId;
+  }
+  return "overview";
+}
 
 const kpis = [
   {
@@ -181,9 +220,50 @@ function SearchIcon() {
   );
 }
 
+function SectionPlaceholder({ section }: { section: NavId }) {
+  const item = nav.find((n) => n.id === section);
+  return (
+    <div className="space-y-6">
+      <div className="neu-surface rounded-2xl p-6 sm:p-8">
+        <p className="text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
+          You are viewing{" "}
+          <span className="font-semibold text-[var(--foreground)]">
+            {item?.label ?? section}
+          </span>
+          . This area is a placeholder until you connect routes or live data.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function NyraDashboard() {
-  const [active, setActive] = useState<(typeof nav)[number]["id"]>("overview");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const active = useMemo(
+    () => parseSection(searchParams),
+    [searchParams],
+  );
+
+  const setSection = useCallback(
+    (id: NavId) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (id === "overview") {
+        params.delete("section");
+      } else {
+        params.set("section", id);
+      }
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const header = SECTION_HEADER[active];
 
   return (
     <div className="nyra-shell-bg flex h-svh max-h-svh min-h-0 w-full overflow-hidden bg-[var(--background)]">
@@ -248,12 +328,13 @@ export function NyraDashboard() {
               key={item.id}
               type="button"
               title={sidebarCollapsed ? item.label : undefined}
-              onClick={() => setActive(item.id)}
+              aria-current={active === item.id ? "page" : undefined}
+              onClick={() => setSection(item.id)}
               className={`flex w-full min-h-[44px] items-center rounded-xl text-left text-[13px] font-medium leading-snug tracking-tight transition ${
                 sidebarCollapsed ? "justify-center px-0" : "gap-3 px-3"
               } ${
                 active === item.id
-                  ? "neu-nav-active text-[var(--foreground)]"
+                  ? "sidebar-nav-active"
                   : "text-[var(--foreground-secondary)] hover:bg-[var(--accent-fill)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -313,9 +394,6 @@ export function NyraDashboard() {
                 <span className="min-w-0 flex-1 truncate pr-1">
                   Search console, workflows…
                 </span>
-                <kbd className="hidden shrink-0 rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-0.5 font-mono text-[10px] font-medium text-[var(--foreground-secondary)] sm:inline-block">
-                  ⌘K
-                </kbd>
               </button>
               <div className="flex shrink-0 items-center justify-end sm:justify-end">
                 <ThemeToggle />
@@ -325,11 +403,10 @@ export function NyraDashboard() {
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
               <div className="min-w-0">
                 <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-3xl">
-                  Dashboard
+                  {header.title}
                 </h1>
                 <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
-                  Welcome back. Here&apos;s what&apos;s happening with your operations
-                  today.
+                  {header.subtitle}
                 </p>
               </div>
               <div className="shrink-0 pt-1 sm:pt-0 sm:text-right">
@@ -345,7 +422,9 @@ export function NyraDashboard() {
         </header>
 
         <main className="dashboard-scroll min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-y-contain p-3 sm:p-4 md:space-y-8 md:p-6">
-          <section>
+          {active === "overview" ? (
+            <>
+              <section>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {kpis.map((k) => (
                 <div key={k.label} className="neu-surface p-4 sm:p-5">
@@ -607,6 +686,10 @@ export function NyraDashboard() {
               scale.
             </p>
           </section>
+            </>
+          ) : (
+            <SectionPlaceholder section={active} />
+          )}
         </main>
       </div>
     </div>

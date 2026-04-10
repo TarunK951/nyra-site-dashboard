@@ -135,6 +135,14 @@ body {
   color: var(--foreground);
 }
 
+/* Sidebar: clearly distinct selected item (accent rail + tint) */
+.sidebar-nav-active {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-muted));
+  box-shadow: var(--shadow-inset-soft), inset 3px 0 0 0 var(--accent);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
 .text-gradient-accent {
   background: linear-gradient(
     135deg,
