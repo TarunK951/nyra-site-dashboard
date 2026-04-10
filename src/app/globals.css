@@ -1,14 +1,75 @@
 @import "tailwindcss";
 
+/* Light — neumorphic base: page and cards share the same hue */
 :root {
-  --background: #07060b;
-  --foreground: #f4f4f5;
-  --surface: #0f0e14;
-  --surface-elevated: #16141c;
-  --border: rgba(255, 255, 255, 0.08);
-  --accent: #a78bfa;
-  --accent-dim: rgba(167, 139, 250, 0.15);
-  --cyan: #22d3ee;
+  --background: #e8e6e1;
+  --background-subtle: #ddd9d2;
+  --foreground: #1a1d21;
+  --foreground-secondary: #5c6370;
+  --surface: #e8e6e1;
+  --surface-muted: #e0ddd6;
+  --border: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.1);
+  --accent: #2563eb;
+  --accent-bright: #0ea5e9;
+  --accent-dim: rgba(37, 99, 235, 0.14);
+  --accent-fill: rgba(0, 0, 0, 0.04);
+  --accent-fill-active: rgba(0, 0, 0, 0.07);
+  --neu-highlight: #faf9f7;
+  --neu-shadow: #c4c2bc;
+  --neu-inset-dark: rgba(0, 0, 0, 0.08);
+  --neu-inset-light: rgba(255, 255, 255, 0.65);
+  --trend-up: #0d9488;
+  --trend-down: #dc2626;
+  /* Wide enough for brand row: collapse + logo + titles without clipping */
+  --sidebar-expanded: 17.5rem;
+  --sidebar-collapsed: 4.25rem;
+  --shadow-raised:
+    6px 6px 14px var(--neu-shadow),
+    -5px -5px 12px var(--neu-highlight);
+  --shadow-raised-lg:
+    8px 8px 20px var(--neu-shadow),
+    -6px -6px 16px var(--neu-highlight);
+  --shadow-inset:
+    inset 3px 3px 8px var(--neu-inset-dark),
+    inset -2px -2px 8px var(--neu-inset-light);
+  --shadow-inset-soft:
+    inset 2px 2px 6px var(--neu-inset-dark),
+    inset -2px -2px 6px var(--neu-inset-light);
+}
+
+[data-theme="dark"] {
+  --background: #1e2229;
+  --background-subtle: #252a33;
+  --foreground: #e8eaed;
+  --foreground-secondary: #9aa0a8;
+  --surface: #1e2229;
+  --surface-muted: #252a33;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --accent: #5b8def;
+  --accent-bright: #38bdf8;
+  --accent-dim: rgba(91, 141, 239, 0.18);
+  --accent-fill: rgba(255, 255, 255, 0.05);
+  --accent-fill-active: rgba(255, 255, 255, 0.09);
+  --neu-highlight: #2a303a;
+  --neu-shadow: #12151a;
+  --neu-inset-dark: rgba(0, 0, 0, 0.45);
+  --neu-inset-light: rgba(255, 255, 255, 0.06);
+  --trend-up: #34d399;
+  --trend-down: #f87171;
+  --shadow-raised:
+    6px 6px 14px var(--neu-shadow),
+    -4px -4px 12px var(--neu-highlight);
+  --shadow-raised-lg:
+    8px 8px 20px var(--neu-shadow),
+    -5px -5px 16px var(--neu-highlight);
+  --shadow-inset:
+    inset 3px 3px 8px var(--neu-inset-dark),
+    inset -2px -2px 8px var(--neu-inset-light);
+  --shadow-inset-soft:
+    inset 2px 2px 6px var(--neu-inset-dark),
+    inset -2px -2px 6px var(--neu-inset-light);
 }
 
 @theme inline {
@@ -21,13 +82,108 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle grid for “analytics” feel */
-.nyra-grid-bg {
+/* Soft ambient wash — no harsh grid over neu surfaces */
+.nyra-shell-bg {
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 70% -10%,
+      color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 10% 100%,
+      color-mix(in srgb, var(--accent-bright) 8%, transparent) 0%,
+      transparent 50%
+    ),
+    var(--background);
+}
+
+/* Raised neumorphic panel */
+.neu-surface {
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.neu-surface-lg {
+  border-radius: 1.25rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-raised-lg);
+}
+
+/* Inset wells, inputs, table header bands */
+.neu-surface-inset {
+  border-radius: 0.75rem;
+  background: var(--surface-muted);
+  box-shadow: var(--shadow-inset-soft);
+}
+
+.neu-surface-inset-deep {
+  border-radius: 0.75rem;
+  background: var(--background-subtle);
+  box-shadow: var(--shadow-inset);
+}
+
+.neu-nav-active {
+  background: var(--surface-muted);
+  box-shadow: var(--shadow-inset-soft);
+  color: var(--foreground);
+}
+
+.text-gradient-accent {
+  background: linear-gradient(
+    135deg,
+    var(--accent-bright) 0%,
+    var(--accent) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.neu-track {
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  box-shadow: var(--shadow-inset-soft);
+}
+
+.chart-placeholder-grid {
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-inset-soft);
+}
+
+/* Subtle scrollbars — matches dark/light via tokens */
+.dashboard-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground-secondary) 45%, transparent)
+    transparent;
+}
+
+.dashboard-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--foreground-secondary) 35%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--foreground-secondary) 55%, transparent);
 }
