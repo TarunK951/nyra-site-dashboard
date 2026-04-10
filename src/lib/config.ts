@@ -4,6 +4,6 @@ export function getApiBase(): string {
   if (typeof raw === "string" && raw.trim()) {
     return raw.replace(/\/$/, "");
   }
-  // Default production host; set NEXT_PUBLIC_API_BASE_URL to override (e.g. http://localhost:5000).
-  return "https://nyraai.io";
+  // Default production API host; set NEXT_PUBLIC_API_BASE_URL to override (e.g. local backend).
+  return "https://server.nyraai.io";
 }

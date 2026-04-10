@@ -337,13 +337,6 @@ export function NyraDashboard() {
               </h1>
             </div>
           </div>
-          <p className="mb-6 text-[14px] leading-relaxed text-[var(--foreground-secondary)]">
-            Sign in to access{" "}
-            <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[12px]">
-              /api/content
-            </code>{" "}
-            (Bearer token).
-          </p>
           <form className="space-y-4" onSubmit={handleLogin}>
             {error && (
               <p
@@ -385,9 +378,6 @@ export function NyraDashboard() {
               {authBusy ? "Signing in…" : "Sign in"}
             </button>
           </form>
-          <p className="mt-4 text-center text-[11px] text-[var(--foreground-secondary)]">
-            API: {getApiBase()}
-          </p>
         </div>
       </div>
     );
