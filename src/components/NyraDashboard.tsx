@@ -3,186 +3,59 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  ConflictError,
+  fetchModule,
+  fetchModulesList,
+  login,
+  publishModule,
+  TOKEN_STORAGE_KEY,
+  unpublishModule,
+  type ContentModulePayload,
+} from "@/lib/content-api";
+import {
+  isModuleKey,
+  MODULE_KEYS,
+  MODULE_LABELS,
+  type ModuleKey,
+  type NavId,
+} from "@/lib/content-modules";
+import { getApiBase } from "@/lib/config";
+
+const MODULE_ICONS: Record<ModuleKey, string> = {
+  blogs: "◇",
+  testimonials: "◆",
+  team: "◎",
+  faq: "?",
+  features: "✦",
+  how_it_works: "⚙",
+  sales_team: "☎",
+  hospitals_bundle: "⊕",
+};
 
 const nav = [
-  { id: "overview", label: "Overview", icon: "◆" },
-  { id: "analytics", label: "Real-time analytics", icon: "◇" },
-  { id: "workflows", label: "Workflows", icon: "⚙" },
-  { id: "insights", label: "Insights", icon: "✦" },
-  { id: "security", label: "Security", icon: "◎" },
-] as const;
-
-export type NavId = (typeof nav)[number]["id"];
-
-const SECTION_HEADER: Record<NavId, { title: string; subtitle: string }> = {
-  overview: {
-    title: "Dashboard",
-    subtitle:
-      "Welcome back. Here is what is happening with your operations today.",
-  },
-  analytics: {
-    title: "Real-time analytics",
-    subtitle:
-      "Live throughput, latency, and adoption across your NyraAI workspace.",
-  },
-  workflows: {
-    title: "Workflows",
-    subtitle: "Automations, handoffs, and deployment status (demo).",
-  },
-  insights: {
-    title: "Insights",
-    subtitle: "Model and business signals curated for operators (demo).",
-  },
-  security: {
-    title: "Security",
-    subtitle: "Policies, access, and audit posture for this console (demo).",
-  },
-};
+  { id: "overview" as const, label: "Overview", icon: "◆" },
+  ...MODULE_KEYS.map((id) => ({
+    id,
+    label: MODULE_LABELS[id],
+    icon: MODULE_ICONS[id],
+  })),
+];
 
 function parseSection(searchParams: URLSearchParams): NavId {
   const raw = searchParams.get("section");
-  if (raw && nav.some((n) => n.id === raw)) {
-    return raw as NavId;
-  }
+  if (raw === "overview" || raw === null) return "overview";
+  if (raw && isModuleKey(raw)) return raw;
   return "overview";
-}
-
-const kpis = [
-  {
-    label: "Productivity lift",
-    value: "34%",
-    hint: "vs. baseline quarter",
-    trend: "+6%",
-    trendUp: true,
-  },
-  {
-    label: "Faster decisions",
-    value: "2.1×",
-    hint: "time to aligned action",
-    trend: "+12%",
-    trendUp: true,
-  },
-  {
-    label: "Cost reduction",
-    value: "18%",
-    hint: "automated handoffs",
-    trend: "+3%",
-    trendUp: true,
-  },
-  {
-    label: "Uptime SLA",
-    value: "99.95%",
-    hint: "governed model ops",
-    trend: "steady",
-    trendUp: null,
-  },
-] as const;
-
-const traffic = [
-  { name: "Direct", pct: 35 },
-  { name: "Organic", pct: 28 },
-  { name: "Referral", pct: 22 },
-  { name: "Partner", pct: 15 },
-] as const;
-
-const goals = [
-  {
-    label: "Quarterly adoption",
-    current: "88%",
-    target: "Target: 90%",
-    pct: 88,
-  },
-  {
-    label: "Active workflows",
-    current: "847",
-    target: "Target: 1,000",
-    pct: 85,
-  },
-  { label: "Conversion rate", current: "3.8%", target: "Target: 5%", pct: 76 },
-] as const;
-
-const chartBars = [42, 65, 48, 72, 55, 80, 62, 88, 74, 91, 68, 84] as const;
-
-const recentOrders = [
-  {
-    customer: "Emma Wilson",
-    email: "emma@example.com",
-    orderId: "ORD-7891",
-    product: "Enterprise Voice Pack",
-    status: "completed",
-    amount: "$299.00",
-  },
-  {
-    customer: "James Chen",
-    email: "james@company.io",
-    orderId: "ORD-7890",
-    product: "Team Plan Upgrade",
-    status: "processing",
-    amount: "$599.00",
-  },
-  {
-    customer: "Sofia Garcia",
-    email: "sofia@startup.co",
-    orderId: "ORD-7889",
-    product: "Compliance Suite",
-    status: "completed",
-    amount: "$1,499.00",
-  },
-  {
-    customer: "Alex Thompson",
-    email: "alex@dev.com",
-    orderId: "ORD-7888",
-    product: "Starter License",
-    status: "pending",
-    amount: "$79.00",
-  },
-  {
-    customer: "Maria Santos",
-    email: "maria@agency.co",
-    orderId: "ORD-7887",
-    product: "Enterprise Voice Pack",
-    status: "completed",
-    amount: "$299.00",
-  },
-] as const;
-
-const activity = [
-  {
-    title: "Reporting pipeline refreshed",
-    meta: "CRM + warehouse sync · 12 min ago",
-  },
-  {
-    title: "New insight: churn risk segment",
-    meta: "Model v3 · reviewed by ops",
-  },
-  {
-    title: "Workflow “Lead follow-up” deployed",
-    meta: "Staging → production",
-  },
-  {
-    title: "API latency within SLO",
-    meta: "Edge region · 2 hours ago",
-  },
-  {
-    title: "Security review signed off",
-    meta: "Quarterly audit · 5 hours ago",
-  },
-] as const;
-
-function statusStyles(status: string) {
-  switch (status) {
-    case "completed":
-      return "text-[var(--trend-up)]";
-    case "processing":
-      return "text-[var(--accent)]";
-    case "pending":
-      return "text-[var(--foreground-secondary)]";
-    default:
-      return "text-[var(--foreground-secondary)]";
-  }
 }
 
 function ChevronIcon({ collapsed }: { collapsed: boolean }) {
@@ -207,39 +80,48 @@ function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden>
-      <circle cx="11" cy="11" r="7" />
-      <path d="M21 21l-4.3-4.3" />
-    </svg>
-  );
+function moduleSummaryLine(mod: ContentModulePayload): string {
+  const c = mod.content;
+  if (!c || typeof c !== "object") return "—";
+  const o = c as Record<string, unknown>;
+  const keys = Object.keys(o).filter((k) => k !== "version");
+  if (keys.length === 0) return "Empty content";
+  return `${keys.length} top-level field(s)`;
 }
 
-function SectionPlaceholder({ section }: { section: NavId }) {
-  const item = nav.find((n) => n.id === section);
-  return (
-    <div className="space-y-6">
-      <div className="neu-surface rounded-2xl p-6 sm:p-8">
-        <p className="text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
-          You are viewing{" "}
-          <span className="font-semibold text-[var(--foreground)]">
-            {item?.label ?? section}
-          </span>
-          . This area is a placeholder until you connect routes or live data.
-        </p>
-      </div>
-    </div>
-  );
+function listRowMeta(
+  row: unknown,
+  index: number,
+): { key: string; title: string; status: string; version: string } {
+  if (!row || typeof row !== "object") {
+    return {
+      key: `row-${index}`,
+      title: JSON.stringify(row),
+      status: "—",
+      version: "—",
+    };
+  }
+  const o = row as Record<string, unknown>;
+  const key =
+    typeof o.key === "string"
+      ? o.key
+      : typeof o.moduleKey === "string"
+        ? o.moduleKey
+        : `row-${index}`;
+  const title =
+    typeof o.title === "string"
+      ? o.title
+      : typeof o.name === "string"
+        ? o.name
+        : key;
+  const status = typeof o.status === "string" ? o.status : "—";
+  const version =
+    typeof o.version === "number"
+      ? String(o.version)
+      : typeof o.version === "string"
+        ? o.version
+        : "—";
+  return { key, title, status, version };
 }
 
 export function NyraDashboard() {
@@ -264,8 +146,252 @@ export function NyraDashboard() {
   );
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const header = SECTION_HEADER[active];
+  const [modulesList, setModulesList] = useState<unknown[] | null>(null);
+  const [listLoading, setListLoading] = useState(false);
+
+  const [moduleData, setModuleData] = useState<ContentModulePayload | null>(
+    null,
+  );
+  const [moduleLoading, setModuleLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      setToken(sessionStorage.getItem(TOKEN_STORAGE_KEY));
+    } catch {
+      setToken(null);
+    }
+    setAuthReady(true);
+  }, []);
+
+  const persistToken = useCallback((t: string | null) => {
+    setToken(t);
+    try {
+      if (t) sessionStorage.setItem(TOKEN_STORAGE_KEY, t);
+      else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const loadModulesList = useCallback(async () => {
+    if (!token) return;
+    setListLoading(true);
+    setError(null);
+    try {
+      const list = await fetchModulesList(token);
+      setModulesList(list);
+    } catch (e) {
+      setModulesList(null);
+      setError(e instanceof Error ? e.message : "Failed to load modules");
+    } finally {
+      setListLoading(false);
+    }
+  }, [token]);
+
+  const loadModule = useCallback(async () => {
+    if (!token || active === "overview") {
+      setModuleData(null);
+      return;
+    }
+    setModuleLoading(true);
+    setError(null);
+    try {
+      const mod = await fetchModule(token, active);
+      setModuleData(mod);
+    } catch (e) {
+      setModuleData(null);
+      setError(e instanceof Error ? e.message : "Failed to load module");
+    } finally {
+      setModuleLoading(false);
+    }
+  }, [token, active]);
+
+  useEffect(() => {
+    if (!authReady || !token) return;
+    void loadModulesList();
+  }, [authReady, token, loadModulesList]);
+
+  useEffect(() => {
+    if (!authReady || !token) return;
+    void loadModule();
+  }, [authReady, token, active, loadModule]);
+
+  const handleLogin = async (e: FormEvent) => {
+    e.preventDefault();
+    setAuthBusy(true);
+    setError(null);
+    try {
+      const t = await login(email.trim(), password);
+      persistToken(t);
+      setPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = () => {
+    persistToken(null);
+    setModulesList(null);
+    setModuleData(null);
+    setEmail("");
+    setPassword("");
+    setError(null);
+    setSection("overview");
+  };
+
+  const handlePublish = async () => {
+    if (!token || active === "overview" || !moduleData) return;
+    setError(null);
+    try {
+      const next = await publishModule(token, active, moduleData.version);
+      setModuleData(next);
+      void loadModulesList();
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        setError(`${e.message} Refetch the module and retry.`);
+        void loadModule();
+      } else {
+        setError(e instanceof Error ? e.message : "Publish failed");
+      }
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!token || active === "overview" || !moduleData) return;
+    setError(null);
+    try {
+      const next = await unpublishModule(token, active, moduleData.version);
+      setModuleData(next);
+      void loadModulesList();
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        setError(`${e.message} Refetch the module and retry.`);
+        void loadModule();
+      } else {
+        setError(e instanceof Error ? e.message : "Unpublish failed");
+      }
+    }
+  };
+
+  const headerTitle =
+    active === "overview"
+      ? "Website content"
+      : MODULE_LABELS[active as ModuleKey];
+  const headerSubtitle =
+    active === "overview"
+      ? "Manage site modules via the content API. Publish changes separately from editing."
+      : `Module “${active}”. Include expected_version on every mutation.`;
+
+  const jsonPreview = useMemo(() => {
+    if (!moduleData) return "";
+    try {
+      return JSON.stringify(moduleData, null, 2);
+    } catch {
+      return String(moduleData);
+    }
+  }, [moduleData]);
+
+  const copyJson = () => {
+    if (!jsonPreview || typeof navigator === "undefined") return;
+    void navigator.clipboard.writeText(jsonPreview);
+  };
+
+  if (!authReady) {
+    return (
+      <div className="flex h-svh items-center justify-center bg-[var(--background)] text-[var(--foreground-secondary)]">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <div className="nyra-shell-bg flex min-h-svh w-full items-center justify-center bg-[var(--background)] p-4">
+        <div className="neu-surface w-full max-w-md rounded-2xl p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="relative h-10 w-16 shrink-0">
+              <Image
+                src="/nyraai-logo.png"
+                alt=""
+                width={120}
+                height={48}
+                className="h-10 w-16 object-contain object-left"
+                priority
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
+                NyraAI
+              </p>
+              <h1 className="text-lg font-semibold text-[var(--foreground)]">
+                Content console
+              </h1>
+            </div>
+          </div>
+          <p className="mb-6 text-[14px] leading-relaxed text-[var(--foreground-secondary)]">
+            Sign in to access{" "}
+            <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[12px]">
+              /api/content
+            </code>{" "}
+            (Bearer token).
+          </p>
+          <form className="space-y-4" onSubmit={handleLogin}>
+            {error && (
+              <p
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-[13px] text-[var(--foreground)]"
+                role="alert">
+                {error}
+              </p>
+            )}
+            <label className="block">
+              <span className="mb-1.5 block text-[12px] font-medium text-[var(--foreground-secondary)]">
+                Email
+              </span>
+              <input
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="neu-surface-inset w-full rounded-xl px-3 py-2.5 text-[14px] text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+                required
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-[12px] font-medium text-[var(--foreground-secondary)]">
+                Password
+              </span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="neu-surface-inset w-full rounded-xl px-3 py-2.5 text-[14px] text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={authBusy}
+              className="neu-surface flex w-full items-center justify-center rounded-xl py-3 text-[14px] font-semibold text-[var(--foreground)] transition hover:opacity-95 disabled:opacity-60">
+              {authBusy ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+          <p className="mt-4 text-center text-[11px] text-[var(--foreground-secondary)]">
+            API: {getApiBase()}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="nyra-shell-bg flex h-svh max-h-svh min-h-0 w-full overflow-hidden bg-[var(--background)]">
@@ -312,7 +438,7 @@ export function NyraDashboard() {
                       NyraAI
                     </p>
                     <p className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
-                      Console
+                      Content
                     </p>
                   </div>
                 </div>
@@ -340,9 +466,7 @@ export function NyraDashboard() {
                   : "text-[var(--foreground-secondary)] hover:bg-[var(--accent-fill)] hover:text-[var(--foreground)]"
               }`}>
               <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center text-[15px] leading-none ${
-                  sidebarCollapsed ? "" : ""
-                }`}
+                className="flex h-8 w-8 shrink-0 items-center justify-center text-[15px] leading-none"
                 aria-hidden>
                 {item.icon}
               </span>
@@ -355,7 +479,20 @@ export function NyraDashboard() {
           ))}
         </nav>
 
-        <div className="shrink-0 border-t border-[var(--border)] px-3 pb-4 pt-3">
+        <div className="shrink-0 space-y-2 border-t border-[var(--border)] px-3 pb-4 pt-3">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`neu-surface-inset flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[12px] font-semibold text-[var(--foreground)] transition hover:opacity-95 ${
+              sidebarCollapsed ? "px-0" : "px-3"
+            }`}>
+            {!sidebarCollapsed && <span>Sign out</span>}
+            {sidebarCollapsed && (
+              <span className="text-sm" aria-hidden>
+                ⎋
+              </span>
+            )}
+          </button>
           <Link
             href="https://nyraai-website.vercel.app"
             target="_blank"
@@ -364,7 +501,7 @@ export function NyraDashboard() {
             className={`neu-surface-inset flex items-center justify-center gap-2 rounded-xl py-2.5 text-[12px] font-semibold text-[var(--foreground)] transition hover:opacity-95 ${
               sidebarCollapsed ? "px-0" : "px-3"
             }`}>
-            {!sidebarCollapsed && <span>Visit marketing site</span>}
+            {!sidebarCollapsed && <span>Marketing site</span>}
             {sidebarCollapsed && (
               <span className="text-sm" aria-hidden>
                 ↗
@@ -372,29 +509,21 @@ export function NyraDashboard() {
             )}
             {!sidebarCollapsed && <span aria-hidden>↗</span>}
           </Link>
-          {!sidebarCollapsed && (
-            <p className="mt-2.5 text-center text-[10px] leading-relaxed text-[var(--foreground-secondary)]">
-              hello@nyra.ai
-            </p>
-          )}
         </div>
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="shrink-0 border-b border-[var(--border)] bg-[var(--background)] px-3 py-3 sm:px-5">
-          <div className="mx-auto flex max-w-[1600px] min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <button
-              type="button"
-              className="neu-surface-inset flex h-11 min-h-[44px] w-full min-w-0 flex-1 items-center gap-3 rounded-xl py-2.5 pl-4 pr-3 text-left text-[13px] text-[var(--foreground-secondary)] sm:min-w-0 lg:max-w-3xl"
-              aria-label="Search (demo)">
-              <span className="pointer-events-none flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--foreground-secondary)]">
-                <SearchIcon />
-              </span>
-              <span className="min-w-0 flex-1 truncate pr-1">
-                Search console, workflows…
-              </span>
-            </button>
-            <div className="flex shrink-0 items-center justify-end sm:justify-end">
+          <div className="mx-auto flex max-w-[1600px] min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="min-w-0 sm:max-w-xl">
+              <p className="truncate text-[12px] text-[var(--foreground-secondary)]">
+                API base:{" "}
+                <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[11px]">
+                  {getApiBase()}
+                </code>
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center justify-end">
               <ThemeToggle />
             </div>
           </div>
@@ -404,288 +533,161 @@ export function NyraDashboard() {
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-3xl">
-                {header.title}
+                {headerTitle}
               </h1>
               <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
-                {header.subtitle}
-              </p>
-            </div>
-            <div className="shrink-0 pt-1 sm:pt-0 sm:text-right">
-              <p className="text-[11px] font-medium text-[var(--foreground-secondary)]">
-                Environment
-              </p>
-              <p className="text-sm font-semibold text-[var(--trend-up)]">
-                Production
+                {headerSubtitle}
               </p>
             </div>
           </div>
 
+          {error && (
+            <div
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-[14px] text-[var(--foreground)]"
+              role="alert">
+              {error}
+            </div>
+          )}
+
           {active === "overview" ? (
-            <>
-              <section>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {kpis.map((k) => (
-                    <div key={k.label} className="neu-surface p-4 sm:p-5">
-                      <p className="text-[12px] font-medium text-[var(--foreground-secondary)]">
-                        {k.label}
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold tracking-tight text-[var(--foreground)]">
-                        {k.value}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between text-[12px]">
-                        <span className="text-[var(--foreground-secondary)]">
-                          {k.hint}
-                        </span>
-                        <span
-                          className={
-                            k.trendUp === null
-                              ? "font-medium text-[var(--foreground-secondary)]"
-                              : k.trendUp
-                                ? "font-semibold text-[var(--trend-up)]"
-                                : "font-semibold text-[var(--trend-down)]"
-                          }>
-                          {k.trend}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                    Overview
-                  </h2>
-                  <p className="text-[12px] text-[var(--foreground-secondary)]">
-                    Monthly performance (demo)
-                  </p>
-                </div>
-                <div className="neu-surface-lg p-5 sm:p-6">
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {(["Revenue", "Orders", "Adoption"] as const).map(
-                      (tab, i) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          className={
-                            i === 0
-                              ? "neu-nav-active rounded-lg px-3 py-1.5 text-[12px] font-semibold text-[var(--foreground)]"
-                              : "rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--foreground-secondary)] transition hover:bg-[var(--accent-fill)]"
-                          }>
-                          {tab}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                  <div className="chart-placeholder-grid relative h-48 overflow-hidden px-2 pt-4 sm:h-56">
-                    <div className="absolute bottom-4 left-2 right-2 flex h-[min(160px,55%)] items-end justify-between gap-1">
-                      {chartBars.map((h, i) => (
-                        <div
-                          key={i}
-                          className="min-w-0 flex-1 rounded-t-md bg-linear-to-t from-[var(--accent)] to-[var(--accent-bright)] opacity-90"
-                          style={{ height: `${h}%` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                <section>
-                  <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                    Traffic sources
-                  </h2>
-                  <div className="neu-surface space-y-4 p-5 sm:p-6">
-                    <p className="text-[13px] text-[var(--foreground-secondary)]">
-                      Where your console visitors originate (demo).
-                    </p>
-                    <p className="text-2xl font-semibold tabular-nums text-[var(--foreground)]">
-                      284K
-                      <span className="ml-2 text-[13px] font-normal text-[var(--foreground-secondary)]">
-                        visits
-                      </span>
-                    </p>
-                    <ul className="space-y-3">
-                      {traffic.map((row) => (
-                        <li key={row.name} className="flex items-center gap-3">
-                          <span className="w-24 shrink-0 text-[13px] font-medium text-[var(--foreground)]">
-                            {row.name}
-                          </span>
-                          <div className="neu-track h-2.5 flex-1 overflow-hidden p-px">
-                            <div
-                              className="h-full rounded-full bg-linear-to-r from-[var(--accent)] to-[var(--accent-bright)]"
-                              style={{ width: `${row.pct}%` }}
-                            />
-                          </div>
-                          <span className="w-10 text-right text-[12px] tabular-nums text-[var(--foreground-secondary)]">
-                            {row.pct}%
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </section>
-
-                <section>
-                  <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                    Monthly goals
-                  </h2>
-                  <div className="neu-surface space-y-5 p-5 sm:p-6">
-                    <p className="text-[13px] text-[var(--foreground-secondary)]">
-                      Track progress toward operational targets.
-                    </p>
-                    <ul className="space-y-4">
-                      {goals.map((g) => (
-                        <li key={g.label}>
-                          <div className="flex items-center justify-between text-[12px]">
-                            <span className="font-medium text-[var(--foreground)]">
-                              {g.label}
-                            </span>
-                            <span className="text-[var(--foreground-secondary)]">
-                              {g.target}
-                            </span>
-                          </div>
-                          <div className="neu-track mt-2 h-2.5 overflow-hidden p-px">
-                            <div
-                              className="h-full rounded-full bg-linear-to-r from-[var(--accent)] to-[var(--accent-bright)]"
-                              style={{ width: `${g.pct}%` }}
-                              aria-hidden
-                            />
-                          </div>
-                          <p className="mt-1.5 text-[13px] font-semibold tabular-nums text-[var(--foreground)]">
-                            {g.current}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </section>
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
+                  Modules
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => void loadModulesList()}
+                  disabled={listLoading}
+                  className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-50">
+                  {listLoading ? "Refreshing…" : "Refresh"}
+                </button>
               </div>
-
-              <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
-                <section className="lg:col-span-3">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                      Recent orders
-                    </h2>
-                    <span className="text-[12px] font-medium text-[var(--accent)]">
-                      View all
-                    </span>
-                  </div>
-                  <div className="neu-surface overflow-hidden p-0">
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[560px] text-left text-[13px]">
-                        <thead>
-                          <tr className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
-                            <th className="neu-surface-inset-deep px-4 py-3 sm:px-5">
-                              Customer
-                            </th>
-                            <th className="neu-surface-inset-deep px-2 py-3">
-                              Order ID
-                            </th>
-                            <th className="neu-surface-inset-deep px-2 py-3">
-                              Product
-                            </th>
-                            <th className="neu-surface-inset-deep px-2 py-3">
-                              Status
-                            </th>
-                            <th className="neu-surface-inset-deep px-4 py-3 text-right sm:px-5">
-                              Amount
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--border)]">
-                          {recentOrders.map((row) => (
+              <div className="neu-surface overflow-hidden p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left text-[13px]">
+                    <thead>
+                      <tr className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+                        <th className="neu-surface-inset-deep px-4 py-3 sm:px-5">
+                          Module
+                        </th>
+                        <th className="neu-surface-inset-deep px-2 py-3">
+                          Title
+                        </th>
+                        <th className="neu-surface-inset-deep px-2 py-3">
+                          Status
+                        </th>
+                        <th className="neu-surface-inset-deep px-4 py-3 text-right sm:px-5">
+                          Version
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border)]">
+                      {modulesList && modulesList.length > 0 ? (
+                        modulesList.map((row, i) => {
+                          const meta = listRowMeta(row, i);
+                          return (
                             <tr
-                              key={row.orderId}
+                              key={meta.key}
                               className="transition hover:bg-[var(--accent-fill)]">
-                              <td className="px-4 py-3.5 sm:px-5">
-                                <div className="flex items-center gap-3">
-                                  <span className="neu-surface-inset flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-[var(--accent)]">
-                                    {row.customer
-                                      .split(" ")
-                                      .map((w) => w[0])
-                                      .join("")
-                                      .slice(0, 2)}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <p className="font-semibold text-[var(--foreground)]">
-                                      {row.customer}
-                                    </p>
-                                    <p className="truncate text-[12px] text-[var(--foreground-secondary)]">
-                                      {row.email}
-                                    </p>
-                                  </div>
-                                </div>
+                              <td className="px-4 py-3 font-mono text-[12px] text-[var(--foreground)] sm:px-5">
+                                {meta.key}
                               </td>
-                              <td className="px-2 py-3.5 font-mono text-[12px] text-[var(--foreground-secondary)]">
-                                {row.orderId}
+                              <td className="max-w-[200px] truncate px-2 py-3 text-[var(--foreground)]">
+                                {meta.title}
                               </td>
-                              <td className="max-w-[140px] truncate px-2 py-3.5 text-[var(--foreground)]">
-                                {row.product}
+                              <td className="px-2 py-3 capitalize text-[var(--foreground-secondary)]">
+                                {meta.status}
                               </td>
-                              <td
-                                className={`px-2 py-3.5 text-[12px] font-medium capitalize ${statusStyles(row.status)}`}>
-                                {row.status}
-                              </td>
-                              <td className="px-4 py-3.5 text-right font-semibold tabular-nums text-[var(--foreground)] sm:px-5">
-                                {row.amount}
+                              <td className="px-4 py-3 text-right font-mono text-[12px] text-[var(--foreground-secondary)] sm:px-5">
+                                {meta.version}
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="lg:col-span-2">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                      Recent activity
-                    </h2>
-                    <span className="text-[12px] font-medium text-[var(--accent)]">
-                      View all
-                    </span>
-                  </div>
-                  <div className="neu-surface overflow-hidden p-0">
-                    <ul className="divide-y divide-[var(--border)]">
-                      {activity.map((a) => (
-                        <li key={a.title} className="px-4 py-3.5 sm:px-5">
-                          <p className="text-[13px] font-semibold text-[var(--foreground)]">
-                            {a.title}
-                          </p>
-                          <p className="mt-1 text-[12px] text-[var(--foreground-secondary)]">
-                            {a.meta}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="border-t border-[var(--border)] px-4 py-3 sm:px-5">
-                      <p className="text-[12px] text-[var(--foreground-secondary)]">
-                        Sync in real time · enterprise security · automated
-                        workflows
-                      </p>
-                    </div>
-                  </div>
-                </section>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="px-4 py-8 text-center text-[13px] text-[var(--foreground-secondary)] sm:px-5">
+                            {listLoading
+                              ? "Loading modules…"
+                              : "No rows returned. Check GET /api/content/modules response shape."}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-
-              <section className="neu-surface rounded-2xl px-5 py-4 sm:px-6 sm:py-5">
-                <p className="text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
-                  <span className="font-semibold text-[var(--foreground)]">
-                    Nyra AI
-                  </span>{" "}
-                  turns messy customer and ops data into live strategy—this
-                  console is a starting point for the same story: signal,
-                  motion, and governed scale.
-                </p>
-              </section>
-            </>
+              <p className="text-[13px] leading-relaxed text-[var(--foreground-secondary)]">
+                Public site should use{" "}
+                <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[12px]">
+                  /api/public-content
+                </code>{" "}
+                only. Select a module in the sidebar to view versioned payload
+                and publish state.
+              </p>
+            </section>
           ) : (
-            <SectionPlaceholder section={active} />
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {moduleData && (
+                  <>
+                    <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--foreground)]">
+                      v{moduleData.version}
+                    </span>
+                    <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] capitalize text-[var(--foreground-secondary)]">
+                      {moduleData.status ?? "unknown"}
+                    </span>
+                    <span className="text-[12px] text-[var(--foreground-secondary)]">
+                      {moduleSummaryLine(moduleData)}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void loadModule()}
+                  disabled={moduleLoading}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:opacity-90 disabled:opacity-50">
+                  {moduleLoading ? "Loading…" : "Refetch module"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={
+                    moduleLoading || !moduleData || moduleData.status === "published"
+                  }
+                  className="rounded-lg bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[var(--background)] transition hover:opacity-90 disabled:opacity-40">
+                  Publish
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUnpublish}
+                  disabled={
+                    moduleLoading || !moduleData || moduleData.status !== "published"
+                  }
+                  className="rounded-lg border border-[var(--border)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
+                  Unpublish
+                </button>
+                <button
+                  type="button"
+                  onClick={copyJson}
+                  disabled={!jsonPreview}
+                  className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
+                  Copy JSON
+                </button>
+              </div>
+              <div className="neu-surface overflow-hidden p-0">
+                <pre className="dashboard-scroll max-h-[min(70vh,720px)] overflow-auto p-4 text-[11px] leading-relaxed text-[var(--foreground)] sm:p-5 sm:text-[12px]">
+                  {moduleLoading && !moduleData
+                    ? "Loading…"
+                    : jsonPreview || "No data."}
+                </pre>
+              </div>
+            </section>
           )}
         </main>
       </div>

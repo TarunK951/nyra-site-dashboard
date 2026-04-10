@@ -21,17 +21,17 @@ const metadataBase = new URL(
 
 export const metadata: Metadata = {
   metadataBase,
-  title: "NyraAI Console — Intelligence Redefined",
+  title: "NyraAI — Website content",
   description:
-    "Operational dashboard for NyraAI: analytics, workflows, and AI adoption insights.",
+    "Admin console for Nyra website modules: blogs, team, FAQ, hospitals, and related content APIs.",
   icons: {
     icon: "/nyraai-logo.png",
     apple: "/nyraai-logo.png",
   },
   openGraph: {
-    title: "NyraAI Console — Intelligence Redefined",
+    title: "NyraAI — Website content",
     description:
-      "Operational dashboard for NyraAI: analytics, workflows, and AI adoption insights.",
+      "Admin console for Nyra website modules and content APIs.",
     images: [
       {
         url: "/nyraai-logo.png",
@@ -43,9 +43,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "NyraAI Console — Intelligence Redefined",
+    title: "NyraAI — Website content",
     description:
-      "Operational dashboard for NyraAI: analytics, workflows, and AI adoption insights.",
+      "Admin console for Nyra website modules and content APIs.",
     images: ["/nyraai-logo.png"],
   },
 };
