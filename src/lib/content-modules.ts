@@ -23,6 +23,25 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   hospitals_bundle: "Hospitals",
 };
 
+/** Labels for the overview table (e.g. singular “Hospital”). */
+export const OVERVIEW_MODULE_LABELS: Record<ModuleKey, string> = {
+  ...MODULE_LABELS,
+  hospitals_bundle: "Hospital",
+};
+
+/** Short subtitle shown under the module title when the simplified CMS chrome is used. */
+export const MODULE_SUBTITLES: Record<ModuleKey, string> = {
+  blogs: "Create posts and manage published blog content.",
+  testimonials: "Add and manage customer testimonials.",
+  team: "Manage team member profiles and links.",
+  faq: "Manage frequently asked questions.",
+  features: "Manage product features and highlights.",
+  how_it_works: "Manage how-it-works steps.",
+  sales_team: "Manage sales representatives and regions.",
+  hospitals_bundle:
+    "Manage categories, hospitals, and doctors (nested under each hospital).",
+};
+
 /** Primary collection id per module (for `/items/:collection` routes). */
 export const COLLECTION_BY_MODULE: Record<ModuleKey, string | readonly string[]> =
   {

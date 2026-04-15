@@ -1,5 +1,6 @@
 import { getApiBase } from "@/lib/config";
 import type { ModuleKey } from "@/lib/content-modules";
+import type { Doctor } from "@/lib/content-types";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json",
@@ -29,17 +30,105 @@ function extractAccessToken(body: unknown): string | null {
   return null;
 }
 
-function extractMessage(body: unknown, fallback: string): string {
+function formatValidationDetail(detail: unknown): string | null {
+  if (!Array.isArray(detail)) return null;
+  const parts: string[] = [];
+  for (const item of detail) {
+    if (typeof item === "object" && item !== null) {
+      const row = item as Record<string, unknown>;
+      const msg =
+        typeof row.msg === "string"
+          ? row.msg
+          : typeof row.message === "string"
+            ? row.message
+            : null;
+      const loc = Array.isArray(row.loc)
+        ? row.loc
+            .map((x) => (typeof x === "string" || typeof x === "number" ? String(x) : ""))
+            .filter(Boolean)
+            .join(".")
+        : "";
+      if (msg) parts.push(loc ? `${loc}: ${msg}` : msg);
+    } else if (typeof item === "string") {
+      parts.push(item);
+    }
+  }
+  return parts.length ? parts.join("; ") : null;
+}
+
+export function extractMessage(body: unknown, fallback: string): string {
   if (!body || typeof body !== "object") return fallback;
   const o = body as Record<string, unknown>;
-  if (typeof o.message === "string") return o.message;
-  if (typeof o.error === "string") return o.error;
+  if (typeof o.message === "string" && o.message.trim()) return o.message;
+  if (typeof o.error === "string" && o.error.trim()) return o.error;
+  if (typeof o.detail === "string" && o.detail.trim()) return o.detail;
+  const detailMsg = formatValidationDetail(o.detail);
+  if (detailMsg) return detailMsg;
+  if (Array.isArray(o.errors) && o.errors.length > 0) {
+    const joined = o.errors.map(String).filter(Boolean).join("; ");
+    if (joined) return joined;
+  }
   return fallback;
+}
+
+/**
+ * Shapes doctor JSON for the content API: strips empty strings (often rejected by
+ * URI/format validators), omits empty LinkedIn, and sends numeric experience when
+ * the field is a plain number string.
+ */
+export function normalizeDoctorItemForApi(d: Doctor): Record<string, unknown> {
+  const id = (d.id ?? "").trim();
+  const name = (d.name ?? "").trim();
+  const specialty = (d.specialty ?? "").trim();
+  const qualification = (d.qualification ?? "").trim();
+  const expRaw = (d.experience ?? "").trim();
+  const image = (d.image ?? "").trim();
+  const bio = (d.bio ?? "").trim();
+  const linkedin =
+    typeof d.social?.linkedin === "string" ? d.social.linkedin.trim() : "";
+
+  const out: Record<string, unknown> = {
+    id,
+    name,
+    visible: d.visible !== false,
+  };
+
+  if (specialty) out.specialty = specialty;
+  if (qualification) out.qualification = qualification;
+
+  if (expRaw) {
+    if (/^\d+$/.test(expRaw) || /^\d+\.\d+$/.test(expRaw)) {
+      out.experience = Number(expRaw);
+    } else {
+      out.experience = expRaw;
+    }
+  }
+
+  if (image) out.image = image;
+  if (bio) out.bio = bio;
+
+  const langs = (d.languages ?? [])
+    .map((x) => String(x).trim())
+    .filter(Boolean);
+  if (langs.length) out.languages = langs;
+
+  if (linkedin) {
+    out.social = { linkedin };
+  }
+
+  return out;
+}
+
+function throwIfConflict(res: Response, body: unknown): void {
+  if (res.status === 409) {
+    throw new ConflictError(extractMessage(body, "Version conflict"));
+  }
 }
 
 export async function login(email: string, password: string): Promise<string> {
   const res = await fetch(`${getApiBase()}/api/auth/login`, {
     method: "POST",
+    cache: "no-store",
     headers: JSON_HEADERS,
     body: JSON.stringify({ email, password }),
   });
@@ -57,12 +146,34 @@ async function authFetch(
   init?: RequestInit,
 ): Promise<{ res: Response; body: unknown }> {
   const res = await fetch(`${getApiBase()}${path}`, {
+    cache: "no-store",
     ...init,
     headers: {
       ...JSON_HEADERS,
       Authorization: `Bearer ${token}`,
       ...(init?.headers as Record<string, string>),
     },
+  });
+  let body: unknown = null;
+  const ct = res.headers.get("content-type");
+  if (ct?.includes("application/json")) {
+    body = await res.json().catch(() => null);
+  }
+  return { res, body };
+}
+
+async function authFetchMultipart(
+  path: string,
+  token: string,
+  formData: FormData,
+): Promise<{ res: Response; body: unknown }> {
+  const res = await fetch(`${getApiBase()}${path}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
   });
   let body: unknown = null;
   const ct = res.headers.get("content-type");
@@ -94,14 +205,40 @@ export async function fetchModulesList(token: string): Promise<unknown[]> {
   return normalizeModulesList(body);
 }
 
-export function unwrapModuleData(body: unknown): ContentModulePayload | null {
+/** Raw `data` from `{ success, data }` or the object itself. */
+export function unwrapApiData(body: unknown): unknown {
   if (!body || typeof body !== "object") return null;
   const o = body as Record<string, unknown>;
-  const data = o.success && o.data !== undefined ? o.data : o;
+  if (o.success === true && "data" in o && o.data !== undefined) {
+    return o.data;
+  }
+  return body;
+}
+
+export function unwrapModuleData(body: unknown): ContentModulePayload | null {
+  const data = unwrapApiData(body);
   if (!data || typeof data !== "object") return null;
   const d = data as Record<string, unknown>;
   if (typeof d.version !== "number") return null;
   return d as ContentModulePayload;
+}
+
+/**
+ * After item/doctor/media mutations, backend may return the full module or a wrapper.
+ */
+export function unwrapModuleDataLoose(body: unknown): ContentModulePayload | null {
+  const mod = unwrapModuleData(body);
+  if (mod) return mod;
+  const data = unwrapApiData(body);
+  if (!data || typeof data !== "object") return null;
+  const o = data as Record<string, unknown>;
+  if (o.module && typeof o.module === "object") {
+    const inner = o.module as Record<string, unknown>;
+    if (typeof inner.version === "number") {
+      return inner as ContentModulePayload;
+    }
+  }
+  return null;
 }
 
 export async function fetchModule(
@@ -135,9 +272,7 @@ export async function publishModule(
       body: JSON.stringify({ expected_version: expectedVersion }),
     },
   );
-  if (res.status === 409) {
-    throw new ConflictError(extractMessage(body, "Version conflict"));
-  }
+  throwIfConflict(res, body);
   if (!res.ok) {
     throw new Error(extractMessage(body, "Publish failed"));
   }
@@ -159,15 +294,239 @@ export async function unpublishModule(
       body: JSON.stringify({ expected_version: expectedVersion }),
     },
   );
-  if (res.status === 409) {
-    throw new ConflictError(extractMessage(body, "Version conflict"));
-  }
+  throwIfConflict(res, body);
   if (!res.ok) {
     throw new Error(extractMessage(body, "Unpublish failed"));
   }
   const mod = unwrapModuleData(body);
   if (!mod) throw new Error("Unexpected response after unpublish");
   return mod;
+}
+
+export async function replaceModule(
+  token: string,
+  moduleKey: ModuleKey,
+  payload: {
+    expected_version: number;
+    title?: string;
+    status?: string;
+    content?: unknown;
+  },
+): Promise<ContentModulePayload> {
+  const { res, body } = await authFetch(
+    `/api/content/${encodeURIComponent(moduleKey)}`,
+    token,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Save module failed"));
+  }
+  const mod = unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+  if (!mod) throw new Error("Unexpected response after module replace");
+  return mod;
+}
+
+export async function listCollectionItems(
+  token: string,
+  moduleKey: ModuleKey,
+  collection: string,
+): Promise<unknown> {
+  const { res, body } = await authFetch(
+    `/api/content/${encodeURIComponent(moduleKey)}/items/${encodeURIComponent(collection)}`,
+    token,
+  );
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Failed to list items"));
+  }
+  return unwrapApiData(body);
+}
+
+export async function createCollectionItem(
+  token: string,
+  moduleKey: ModuleKey,
+  collection: string,
+  expectedVersion: number,
+  item: unknown,
+): Promise<ContentModulePayload | null> {
+  const { res, body } = await authFetch(
+    `/api/content/${encodeURIComponent(moduleKey)}/items/${encodeURIComponent(collection)}`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ expected_version: expectedVersion, item }),
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Create failed"));
+  }
+  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+}
+
+export async function updateCollectionItem(
+  token: string,
+  moduleKey: ModuleKey,
+  collection: string,
+  itemId: string,
+  expectedVersion: number,
+  item: unknown,
+): Promise<ContentModulePayload | null> {
+  const { res, body } = await authFetch(
+    `/api/content/${encodeURIComponent(moduleKey)}/items/${encodeURIComponent(collection)}/${encodeURIComponent(itemId)}`,
+    token,
+    {
+      method: "PUT",
+      body: JSON.stringify({ expected_version: expectedVersion, item }),
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Update failed"));
+  }
+  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+}
+
+export async function deleteCollectionItem(
+  token: string,
+  moduleKey: ModuleKey,
+  collection: string,
+  itemId: string,
+  expectedVersion: number,
+): Promise<ContentModulePayload | null> {
+  const { res, body } = await authFetch(
+    `/api/content/${encodeURIComponent(moduleKey)}/items/${encodeURIComponent(collection)}/${encodeURIComponent(itemId)}`,
+    token,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ expected_version: expectedVersion }),
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Delete failed"));
+  }
+  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+}
+
+function doctorExpectedVersionQuery(expectedVersion: number): string {
+  return `?${new URLSearchParams({
+    expected_version: String(expectedVersion),
+  }).toString()}`;
+}
+
+/**
+ * Doctor routes expect the JSON body to be the doctor object only (not `{ item, expected_version }`).
+ * Version is sent as a query param so optimistic locking still works.
+ */
+export async function createHospitalDoctor(
+  token: string,
+  hospitalId: string,
+  expectedVersion: number,
+  item: unknown,
+): Promise<ContentModulePayload | null> {
+  const { res, body } = await authFetch(
+    `/api/content/hospitals_bundle/hospitals/${encodeURIComponent(hospitalId)}/doctors${doctorExpectedVersionQuery(expectedVersion)}`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify(item),
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Add doctor failed"));
+  }
+  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+}
+
+export async function updateHospitalDoctor(
+  token: string,
+  hospitalId: string,
+  doctorId: string,
+  expectedVersion: number,
+  item: unknown,
+): Promise<ContentModulePayload | null> {
+  const { res, body } = await authFetch(
+    `/api/content/hospitals_bundle/hospitals/${encodeURIComponent(hospitalId)}/doctors/${encodeURIComponent(doctorId)}${doctorExpectedVersionQuery(expectedVersion)}`,
+    token,
+    {
+      method: "PUT",
+      body: JSON.stringify(item),
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Update doctor failed"));
+  }
+  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+}
+
+export async function deleteHospitalDoctor(
+  token: string,
+  hospitalId: string,
+  doctorId: string,
+  expectedVersion: number,
+): Promise<ContentModulePayload | null> {
+  const { res, body } = await authFetch(
+    `/api/content/hospitals_bundle/hospitals/${encodeURIComponent(hospitalId)}/doctors/${encodeURIComponent(doctorId)}${doctorExpectedVersionQuery(expectedVersion)}`,
+    token,
+    {
+      method: "DELETE",
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Delete doctor failed"));
+  }
+  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+}
+
+export type UploadMediaResult = {
+  module: ContentModulePayload | null;
+  /** URL returned by API when present */
+  url?: string;
+};
+
+export async function uploadItemMedia(
+  token: string,
+  moduleKey: ModuleKey,
+  collection: string,
+  itemId: string,
+  expectedVersion: number,
+  file: File,
+  field: string,
+): Promise<UploadMediaResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("field", field);
+  formData.append("expected_version", String(expectedVersion));
+
+  const { res, body } = await authFetchMultipart(
+    `/api/content/${encodeURIComponent(moduleKey)}/items/${encodeURIComponent(collection)}/${encodeURIComponent(itemId)}/media`,
+    token,
+    formData,
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Upload failed"));
+  }
+  const mod = unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+  let url: string | undefined;
+  const data = unwrapApiData(body);
+  if (data && typeof data === "object") {
+    const o = data as Record<string, unknown>;
+    if (typeof o.url === "string") url = o.url;
+    else if (typeof o.mediaUrl === "string") url = o.mediaUrl;
+    else if (o.item && typeof o.item === "object") {
+      const it = o.item as Record<string, unknown>;
+      if (typeof it[field] === "string") url = it[field] as string;
+    }
+  }
+  return { module: mod, url };
 }
 
 export class ConflictError extends Error {

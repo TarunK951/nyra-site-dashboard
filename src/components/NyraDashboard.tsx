@@ -11,11 +11,11 @@ import {
   type FormEvent,
 } from "react";
 
+import { ModuleWorkspace } from "@/components/cms/ModuleWorkspace";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   ConflictError,
   fetchModule,
-  fetchModulesList,
   login,
   publishModule,
   TOKEN_STORAGE_KEY,
@@ -26,9 +26,12 @@ import {
   isModuleKey,
   MODULE_KEYS,
   MODULE_LABELS,
+  MODULE_SUBTITLES,
+  OVERVIEW_MODULE_LABELS,
   type ModuleKey,
   type NavId,
 } from "@/lib/content-modules";
+import { getModuleItemCount } from "@/lib/content-types";
 import { getApiBase } from "@/lib/config";
 
 const MODULE_ICONS: Record<ModuleKey, string> = {
@@ -89,41 +92,6 @@ function moduleSummaryLine(mod: ContentModulePayload): string {
   return `${keys.length} top-level field(s)`;
 }
 
-function listRowMeta(
-  row: unknown,
-  index: number,
-): { key: string; title: string; status: string; version: string } {
-  if (!row || typeof row !== "object") {
-    return {
-      key: `row-${index}`,
-      title: JSON.stringify(row),
-      status: "—",
-      version: "—",
-    };
-  }
-  const o = row as Record<string, unknown>;
-  const key =
-    typeof o.key === "string"
-      ? o.key
-      : typeof o.moduleKey === "string"
-        ? o.moduleKey
-        : `row-${index}`;
-  const title =
-    typeof o.title === "string"
-      ? o.title
-      : typeof o.name === "string"
-        ? o.name
-        : key;
-  const status = typeof o.status === "string" ? o.status : "—";
-  const version =
-    typeof o.version === "number"
-      ? String(o.version)
-      : typeof o.version === "string"
-        ? o.version
-        : "—";
-  return { key, title, status, version };
-}
-
 export function NyraDashboard() {
   const router = useRouter();
   const pathname = usePathname();
@@ -153,8 +121,10 @@ export function NyraDashboard() {
   const [authBusy, setAuthBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [modulesList, setModulesList] = useState<unknown[] | null>(null);
-  const [listLoading, setListLoading] = useState(false);
+  const [overviewCounts, setOverviewCounts] = useState<
+    Partial<Record<ModuleKey, number>>
+  >({});
+  const [overviewLoading, setOverviewLoading] = useState(false);
 
   const [moduleData, setModuleData] = useState<ContentModulePayload | null>(
     null,
@@ -180,18 +150,39 @@ export function NyraDashboard() {
     }
   }, []);
 
-  const loadModulesList = useCallback(async () => {
+  const loadOverviewCounts = useCallback(async () => {
     if (!token) return;
-    setListLoading(true);
+    setOverviewLoading(true);
     setError(null);
     try {
-      const list = await fetchModulesList(token);
-      setModulesList(list);
+      const settled = await Promise.allSettled(
+        MODULE_KEYS.map(async (key) => {
+          const mod = await fetchModule(token, key);
+          return { key, count: getModuleItemCount(mod, key) };
+        }),
+      );
+      const next: Partial<Record<ModuleKey, number>> = {};
+      let failed = 0;
+      for (const s of settled) {
+        if (s.status === "fulfilled") {
+          next[s.value.key] = s.value.count;
+        } else {
+          failed += 1;
+        }
+      }
+      setOverviewCounts(next);
+      if (failed > 0) {
+        setError(
+          failed === MODULE_KEYS.length
+            ? "Could not load module counts. Check the API and your token."
+            : `Could not load ${failed} module(s). Some counts may be missing.`,
+        );
+      }
     } catch (e) {
-      setModulesList(null);
-      setError(e instanceof Error ? e.message : "Failed to load modules");
+      setOverviewCounts({});
+      setError(e instanceof Error ? e.message : "Failed to load counts");
     } finally {
-      setListLoading(false);
+      setOverviewLoading(false);
     }
   }, [token]);
 
@@ -214,9 +205,9 @@ export function NyraDashboard() {
   }, [token, active]);
 
   useEffect(() => {
-    if (!authReady || !token) return;
-    void loadModulesList();
-  }, [authReady, token, loadModulesList]);
+    if (!authReady || !token || active !== "overview") return;
+    void loadOverviewCounts();
+  }, [authReady, token, active, loadOverviewCounts]);
 
   useEffect(() => {
     if (!authReady || !token) return;
@@ -240,7 +231,7 @@ export function NyraDashboard() {
 
   const handleLogout = () => {
     persistToken(null);
-    setModulesList(null);
+    setOverviewCounts({});
     setModuleData(null);
     setEmail("");
     setPassword("");
@@ -254,7 +245,6 @@ export function NyraDashboard() {
     try {
       const next = await publishModule(token, active, moduleData.version);
       setModuleData(next);
-      void loadModulesList();
     } catch (e) {
       if (e instanceof ConflictError) {
         setError(`${e.message} Refetch the module and retry.`);
@@ -271,7 +261,6 @@ export function NyraDashboard() {
     try {
       const next = await unpublishModule(token, active, moduleData.version);
       setModuleData(next);
-      void loadModulesList();
     } catch (e) {
       if (e instanceof ConflictError) {
         setError(`${e.message} Refetch the module and retry.`);
@@ -289,7 +278,10 @@ export function NyraDashboard() {
   const headerSubtitle =
     active === "overview"
       ? "Manage site modules via the content API. Publish changes separately from editing."
-      : `Module “${active}”. Include expected_version on every mutation.`;
+      : MODULE_SUBTITLES[active as ModuleKey];
+
+  /** Hide version chips, refetch/publish/unpublish/copy JSON, and raw JSON for all content module pages. */
+  const isSimplifiedModuleView = active !== "overview";
 
   const jsonPreview = useMemo(() => {
     if (!moduleData) return "";
@@ -547,136 +539,147 @@ export function NyraDashboard() {
                 </h2>
                 <button
                   type="button"
-                  onClick={() => void loadModulesList()}
-                  disabled={listLoading}
+                  onClick={() => void loadOverviewCounts()}
+                  disabled={overviewLoading}
                   className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-50">
-                  {listLoading ? "Refreshing…" : "Refresh"}
+                  {overviewLoading ? "Refreshing…" : "Refresh"}
                 </button>
               </div>
               <div className="neu-surface overflow-hidden p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-[13px]">
+                  <table className="w-full min-w-[360px] text-left text-[13px]">
                     <thead>
                       <tr className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
                         <th className="neu-surface-inset-deep px-4 py-3 sm:px-5">
                           Module
                         </th>
-                        <th className="neu-surface-inset-deep px-2 py-3">
-                          Title
-                        </th>
-                        <th className="neu-surface-inset-deep px-2 py-3">
-                          Status
-                        </th>
                         <th className="neu-surface-inset-deep px-4 py-3 text-right sm:px-5">
-                          Version
+                          Count
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border)]">
-                      {modulesList && modulesList.length > 0 ? (
-                        modulesList.map((row, i) => {
-                          const meta = listRowMeta(row, i);
-                          return (
-                            <tr
-                              key={meta.key}
-                              className="transition hover:bg-[var(--accent-fill)]">
-                              <td className="px-4 py-3 font-mono text-[12px] text-[var(--foreground)] sm:px-5">
-                                {meta.key}
-                              </td>
-                              <td className="max-w-[200px] truncate px-2 py-3 text-[var(--foreground)]">
-                                {meta.title}
-                              </td>
-                              <td className="px-2 py-3 capitalize text-[var(--foreground-secondary)]">
-                                {meta.status}
-                              </td>
-                              <td className="px-4 py-3 text-right font-mono text-[12px] text-[var(--foreground-secondary)] sm:px-5">
-                                {meta.version}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="px-4 py-8 text-center text-[13px] text-[var(--foreground-secondary)] sm:px-5">
-                            {listLoading
-                              ? "Loading modules…"
-                              : "No rows returned. Check GET /api/content/modules response shape."}
-                          </td>
-                        </tr>
-                      )}
+                      {MODULE_KEYS.map((key) => {
+                        const count = overviewCounts[key];
+                        const hasCount = typeof count === "number";
+                        return (
+                          <tr
+                            key={key}
+                            className="cursor-pointer transition hover:bg-[var(--accent-fill)]"
+                            onClick={() => setSection(key)}
+                            title={`Open ${OVERVIEW_MODULE_LABELS[key]}`}>
+                            <td className="px-4 py-3 font-medium text-[var(--foreground)] sm:px-5">
+                              {OVERVIEW_MODULE_LABELS[key]}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-[var(--foreground)] sm:px-5">
+                              {overviewLoading && !hasCount
+                                ? "…"
+                                : hasCount
+                                  ? count
+                                  : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </div>
               <p className="text-[13px] leading-relaxed text-[var(--foreground-secondary)]">
-                Public site should use{" "}
+                Counts reflect items saved in each module (posts, list entries,
+                hospitals, etc.). Click a row to open the module. Public site
+                should use{" "}
                 <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[12px]">
                   /api/public-content
                 </code>{" "}
-                only. Select a module in the sidebar to view versioned payload
-                and publish state.
+                for published content.
               </p>
             </section>
           ) : (
             <section className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {moduleData && (
-                  <>
-                    <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--foreground)]">
-                      v{moduleData.version}
-                    </span>
-                    <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] capitalize text-[var(--foreground-secondary)]">
-                      {moduleData.status ?? "unknown"}
-                    </span>
-                    <span className="text-[12px] text-[var(--foreground-secondary)]">
-                      {moduleSummaryLine(moduleData)}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void loadModule()}
-                  disabled={moduleLoading}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:opacity-90 disabled:opacity-50">
-                  {moduleLoading ? "Loading…" : "Refetch module"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePublish}
-                  disabled={
-                    moduleLoading || !moduleData || moduleData.status === "published"
-                  }
-                  className="rounded-lg bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[var(--background)] transition hover:opacity-90 disabled:opacity-40">
-                  Publish
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUnpublish}
-                  disabled={
-                    moduleLoading || !moduleData || moduleData.status !== "published"
-                  }
-                  className="rounded-lg border border-[var(--border)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
-                  Unpublish
-                </button>
-                <button
-                  type="button"
-                  onClick={copyJson}
-                  disabled={!jsonPreview}
-                  className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
-                  Copy JSON
-                </button>
-              </div>
-              <div className="neu-surface overflow-hidden p-0">
-                <pre className="dashboard-scroll max-h-[min(70vh,720px)] overflow-auto p-4 text-[11px] leading-relaxed text-[var(--foreground)] sm:p-5 sm:text-[12px]">
-                  {moduleLoading && !moduleData
-                    ? "Loading…"
-                    : jsonPreview || "No data."}
-                </pre>
-              </div>
+              {!isSimplifiedModuleView && (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {moduleData && (
+                      <>
+                        <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--foreground)]">
+                          v{moduleData.version}
+                        </span>
+                        <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] capitalize text-[var(--foreground-secondary)]">
+                          {moduleData.status ?? "unknown"}
+                        </span>
+                        <span className="text-[12px] text-[var(--foreground-secondary)]">
+                          {moduleSummaryLine(moduleData)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void loadModule()}
+                      disabled={moduleLoading}
+                      className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:opacity-90 disabled:opacity-50">
+                      {moduleLoading ? "Loading…" : "Refetch module"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePublish}
+                      disabled={
+                        moduleLoading || !moduleData || moduleData.status === "published"
+                      }
+                      className="rounded-lg bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[var(--background)] transition hover:opacity-90 disabled:opacity-40">
+                      Publish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleUnpublish}
+                      disabled={
+                        moduleLoading || !moduleData || moduleData.status !== "published"
+                      }
+                      className="rounded-lg border border-[var(--border)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
+                      Unpublish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copyJson}
+                      disabled={!jsonPreview}
+                      className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
+                      Copy JSON
+                    </button>
+                  </div>
+                </>
+              )}
+              {moduleLoading && !moduleData ? (
+                <p className="text-[14px] text-[var(--foreground-secondary)]">
+                  Loading module…
+                </p>
+              ) : moduleData && token ? (
+                <div className="space-y-4">
+                  <ModuleWorkspace
+                    moduleKey={active as ModuleKey}
+                    token={token}
+                    moduleData={moduleData}
+                    onModuleUpdated={setModuleData}
+                    reloadModule={loadModule}
+                    onError={setError}
+                  />
+                  {!isSimplifiedModuleView && (
+                    <details className="group rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+                      <summary className="cursor-pointer text-[12px] font-semibold text-[var(--foreground-secondary)]">
+                        Raw module JSON
+                      </summary>
+                      <pre className="dashboard-scroll mt-3 max-h-[min(40vh,360px)] overflow-auto text-[11px] leading-relaxed text-[var(--foreground)] sm:text-[12px]">
+                        {jsonPreview || "{}"}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[14px] text-[var(--foreground-secondary)]">
+                  No data.
+                </p>
+              )}
             </section>
           )}
         </main>
