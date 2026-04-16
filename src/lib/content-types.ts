@@ -27,7 +27,8 @@ export type BlogPost = {
 
 export type TestimonialItem = {
   id: string;
-  type?: string;
+  /** API allows only `video` | `text`. */
+  type?: "video" | "text";
   quote?: string;
   name?: string;
   role?: string;

@@ -86,7 +86,8 @@ export function TestimonialsEditor({
       setFormError(null);
       return;
     }
-    const item = { ...editing, quote, name };
+    const t = editing.type === "video" ? "video" : "text";
+    const item = { ...editing, type: t, quote, name };
     setFieldErrors({});
     setBusy(true);
     setFormError(null);
@@ -228,13 +229,18 @@ export function TestimonialsEditor({
           <div className="space-y-3">
             <FormAlert message={formError} />
             <Field label="Type">
-              <input
+              <select
                 className={inputClass()}
-                value={editing.type ?? ""}
+                value={editing.type === "video" ? "video" : "text"}
                 onChange={(e) =>
-                  setEditing({ ...editing, type: e.target.value })
-                }
-              />
+                  setEditing({
+                    ...editing,
+                    type: e.target.value === "video" ? "video" : "text",
+                  })
+                }>
+                <option value="text">Text</option>
+                <option value="video">Video</option>
+              </select>
             </Field>
             <Field label="Quote *" error={fieldErrors.quote}>
               <textarea
