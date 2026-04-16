@@ -375,3 +375,9 @@ h4 {
 .dashboard-scroll::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text-body) 45%, transparent);
 }
+
+/* Overlays: no box-shadow on buttons (modal shell is already shadow-none) */
+[role="dialog"] button,
+[role="alertdialog"] button {
+  box-shadow: none !important;
+}

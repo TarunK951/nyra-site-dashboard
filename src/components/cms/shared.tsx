@@ -76,7 +76,7 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 max-h-[min(90vh,880px)] w-full max-w-2xl overflow-hidden rounded-[var(--radius-panel)] bg-[var(--surface)] shadow-[var(--shadow-elevated)]">
+        className="relative z-10 max-h-[min(90vh,880px)] w-full max-w-2xl overflow-hidden rounded-[var(--radius-panel)] bg-[var(--surface)] shadow-none">
         <div className="flex items-center justify-between border-b border-solid [border-color:var(--divider-soft)] px-6 py-5 sm:px-8">
           <h3
             id="cms-modal-title"
@@ -86,7 +86,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="neu-surface-sm flex h-10 w-10 shrink-0 items-center justify-center text-[22px] leading-none text-[var(--text-muted)]">
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-button)] bg-[var(--background)] text-[22px] leading-none text-[var(--text-muted)] shadow-none">
             ×
           </button>
         </div>
@@ -119,7 +119,7 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--foreground)_12%,transparent)] p-4 sm:p-6">
       <div
-        className="neu-panel w-full max-w-md p-7 sm:p-8"
+        className="w-full max-w-md rounded-[var(--radius-panel)] bg-[var(--surface)] p-7 shadow-none sm:p-8"
         role="alertdialog"
         aria-labelledby="confirm-title">
         <h4
@@ -135,14 +135,14 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="neu-btn-default px-6 py-2.5 text-[13px] disabled:opacity-50">
+            className="rounded-[var(--radius-button)] bg-[var(--background)] px-6 py-2.5 text-[13px] font-semibold text-[var(--text-heading)] shadow-none transition hover:opacity-90 disabled:opacity-50">
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="rounded-[var(--radius-button)] bg-[color-mix(in_srgb,var(--trend-down)_12%,var(--surface))] px-6 py-2.5 text-[13px] font-semibold text-[var(--trend-down)] shadow-[var(--shadow-button)] transition hover:opacity-90 active:shadow-[var(--shadow-inset-press)] disabled:opacity-50">
+            className="rounded-[var(--radius-button)] bg-[color-mix(in_srgb,var(--trend-down)_12%,var(--surface))] px-6 py-2.5 text-[13px] font-semibold text-[var(--trend-down)] shadow-none transition hover:opacity-90 active:opacity-80 disabled:opacity-50">
             {busy ? "…" : confirmLabel ?? "Delete"}
           </button>
         </div>

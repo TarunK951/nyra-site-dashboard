@@ -32,8 +32,6 @@ import {
   type NavId,
 } from "@/lib/content-modules";
 import { getModuleItemCount } from "@/lib/content-types";
-import { getApiBase } from "@/lib/config";
-
 const MODULE_ICONS: Record<ModuleKey, string> = {
   blogs: "◇",
   testimonials: "◆",
@@ -497,18 +495,8 @@ export function NyraDashboard() {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="shrink-0 border-b border-solid [border-color:var(--divider-soft)] bg-[var(--background)] px-3 py-4 sm:px-6">
-          <div className="mx-auto flex max-w-[1600px] min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div className="min-w-0 sm:max-w-xl">
-              <p className="truncate text-[12px] text-[var(--foreground-secondary)]">
-                API base:{" "}
-                <code className="neu-surface-inset rounded-lg px-2 py-0.5 text-[11px] text-[var(--foreground)]">
-                  {getApiBase()}
-                </code>
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center justify-end">
-              <ThemeToggle />
-            </div>
+          <div className="mx-auto flex max-w-[1600px] min-w-0 flex-row items-center justify-end">
+            <ThemeToggle />
           </div>
         </header>
 

@@ -31,6 +31,7 @@ function emptyItem(): TeamMember {
     image: "",
     social: { linkedin: "" },
     visible: true,
+    status: "published",
   };
 }
 
@@ -65,13 +66,18 @@ export function TeamEditor({
       setFormError(null);
       return;
     }
-    const item = { ...editing, name };
+    const isUpdate = items.some((x) => x.id === editing.id);
+    const item: TeamMember = {
+      ...editing,
+      name,
+      status: editing.status ?? "published",
+    };
     setFieldErrors({});
     setBusy(true);
     setFormError(null);
     try {
       const v = moduleData.version;
-      const next = items.some((x) => x.id === item.id)
+      const next = isUpdate
         ? await updateCollectionItem(
             token,
             moduleKey,

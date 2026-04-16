@@ -43,6 +43,8 @@ export type TeamMember = {
   image?: string;
   social?: { linkedin?: string; [key: string]: unknown };
   visible?: boolean;
+  /** Set to `published` when creating members so the API treats them as live content. */
+  status?: string;
 };
 
 export type FaqItem = {

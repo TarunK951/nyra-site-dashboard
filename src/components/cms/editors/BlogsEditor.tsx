@@ -431,20 +431,6 @@ export function BlogsEditor({
         onClose={() => !busy && closeModal()}>
         <div className="space-y-5">
           <FormAlert message={formError} />
-          <p className="text-[13px] leading-relaxed text-[var(--foreground-secondary)]">
-            {editingSnapshot
-              ? "Update fields and save. The post stays published when saved."
-              : "Required fields match the content API blog post shape. The post is created with "}
-            {!editingSnapshot && (
-              <>
-                <code className="neu-surface-inset rounded-[var(--radius-button)] px-2 py-0.5 text-[12px] text-[var(--text-heading)]">
-                  status: published
-                </code>{" "}
-                so it can appear in this list and on the public site when the
-                module is published.
-              </>
-            )}
-          </p>
           <Field label="Slug *" error={fieldErrors.slug}>
             <input
               className={inputClass(!!fieldErrors.slug)}
