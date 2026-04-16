@@ -40,7 +40,6 @@ const MODULE_ICONS: Record<ModuleKey, string> = {
   features: "✦",
   how_it_works: "⚙",
   sales_team: "☎",
-  hospitals_bundle: "⊕",
 };
 
 const nav = [
@@ -581,7 +580,7 @@ export function NyraDashboard() {
               </div>
               <p className="text-[13px] leading-[1.65] text-[var(--foreground-secondary)]">
                 Counts reflect items saved in each module (posts, list entries,
-                hospitals, etc.). Click a row to open the module. Public site
+                etc.). Click a row to open the module. Public site
                 should use{" "}
                 <code className="neu-surface-inset rounded-lg px-2 py-0.5 text-[12px] text-[var(--foreground)]">
                   /api/public-content

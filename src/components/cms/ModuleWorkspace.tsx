@@ -6,7 +6,6 @@ import type { EditorProps } from "@/components/cms/editor-types";
 import { BlogsEditor } from "@/components/cms/editors/BlogsEditor";
 import { FaqEditor } from "@/components/cms/editors/FaqEditor";
 import { FeaturesEditor } from "@/components/cms/editors/FeaturesEditor";
-import { HospitalsEditor } from "@/components/cms/editors/HospitalsEditor";
 import { HowItWorksEditor } from "@/components/cms/editors/HowItWorksEditor";
 import { SalesTeamEditor } from "@/components/cms/editors/SalesTeamEditor";
 import { TeamEditor } from "@/components/cms/editors/TeamEditor";
@@ -53,8 +52,6 @@ export function ModuleWorkspace({
       return <HowItWorksEditor {...common} />;
     case "sales_team":
       return <SalesTeamEditor {...common} />;
-    case "hospitals_bundle":
-      return <HospitalsEditor {...common} />;
     default: {
       const _exhaustive: never = moduleKey;
       return _exhaustive;

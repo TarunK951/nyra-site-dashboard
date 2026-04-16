@@ -1,6 +1,5 @@
 import { getApiBase } from "@/lib/config";
 import type { ModuleKey } from "@/lib/content-modules";
-import type { Doctor } from "@/lib/content-types";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json",
@@ -69,54 +68,6 @@ export function extractMessage(body: unknown, fallback: string): string {
     if (joined) return joined;
   }
   return fallback;
-}
-
-/**
- * Shapes doctor JSON for the content API: strips empty strings (often rejected by
- * URI/format validators), omits empty LinkedIn, and sends numeric experience when
- * the field is a plain number string.
- */
-export function normalizeDoctorItemForApi(d: Doctor): Record<string, unknown> {
-  const id = (d.id ?? "").trim();
-  const name = (d.name ?? "").trim();
-  const specialty = (d.specialty ?? "").trim();
-  const qualification = (d.qualification ?? "").trim();
-  const expRaw = (d.experience ?? "").trim();
-  const image = (d.image ?? "").trim();
-  const bio = (d.bio ?? "").trim();
-  const linkedin =
-    typeof d.social?.linkedin === "string" ? d.social.linkedin.trim() : "";
-
-  const out: Record<string, unknown> = {
-    id,
-    name,
-    visible: d.visible !== false,
-  };
-
-  if (specialty) out.specialty = specialty;
-  if (qualification) out.qualification = qualification;
-
-  if (expRaw) {
-    if (/^\d+$/.test(expRaw) || /^\d+\.\d+$/.test(expRaw)) {
-      out.experience = Number(expRaw);
-    } else {
-      out.experience = expRaw;
-    }
-  }
-
-  if (image) out.image = image;
-  if (bio) out.bio = bio;
-
-  const langs = (d.languages ?? [])
-    .map((x) => String(x).trim())
-    .filter(Boolean);
-  if (langs.length) out.languages = langs;
-
-  if (linkedin) {
-    out.social = { linkedin };
-  }
-
-  return out;
 }
 
 function throwIfConflict(res: Response, body: unknown): void {
@@ -408,79 +359,6 @@ export async function deleteCollectionItem(
   throwIfConflict(res, body);
   if (!res.ok) {
     throw new Error(extractMessage(body, "Delete failed"));
-  }
-  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
-}
-
-function doctorExpectedVersionQuery(expectedVersion: number): string {
-  return `?${new URLSearchParams({
-    expected_version: String(expectedVersion),
-  }).toString()}`;
-}
-
-/**
- * Doctor routes expect the JSON body to be the doctor object only (not `{ item, expected_version }`).
- * Version is sent as a query param so optimistic locking still works.
- */
-export async function createHospitalDoctor(
-  token: string,
-  hospitalId: string,
-  expectedVersion: number,
-  item: unknown,
-): Promise<ContentModulePayload | null> {
-  const { res, body } = await authFetch(
-    `/api/content/hospitals_bundle/hospitals/${encodeURIComponent(hospitalId)}/doctors${doctorExpectedVersionQuery(expectedVersion)}`,
-    token,
-    {
-      method: "POST",
-      body: JSON.stringify(item),
-    },
-  );
-  throwIfConflict(res, body);
-  if (!res.ok) {
-    throw new Error(extractMessage(body, "Add doctor failed"));
-  }
-  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
-}
-
-export async function updateHospitalDoctor(
-  token: string,
-  hospitalId: string,
-  doctorId: string,
-  expectedVersion: number,
-  item: unknown,
-): Promise<ContentModulePayload | null> {
-  const { res, body } = await authFetch(
-    `/api/content/hospitals_bundle/hospitals/${encodeURIComponent(hospitalId)}/doctors/${encodeURIComponent(doctorId)}${doctorExpectedVersionQuery(expectedVersion)}`,
-    token,
-    {
-      method: "PUT",
-      body: JSON.stringify(item),
-    },
-  );
-  throwIfConflict(res, body);
-  if (!res.ok) {
-    throw new Error(extractMessage(body, "Update doctor failed"));
-  }
-  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
-}
-
-export async function deleteHospitalDoctor(
-  token: string,
-  hospitalId: string,
-  doctorId: string,
-  expectedVersion: number,
-): Promise<ContentModulePayload | null> {
-  const { res, body } = await authFetch(
-    `/api/content/hospitals_bundle/hospitals/${encodeURIComponent(hospitalId)}/doctors/${encodeURIComponent(doctorId)}${doctorExpectedVersionQuery(expectedVersion)}`,
-    token,
-    {
-      method: "DELETE",
-    },
-  );
-  throwIfConflict(res, body);
-  if (!res.ok) {
-    throw new Error(extractMessage(body, "Delete doctor failed"));
   }
   return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
 }

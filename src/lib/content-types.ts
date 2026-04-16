@@ -87,69 +87,6 @@ export type SalesRep = {
   visible?: boolean;
 };
 
-export type HospitalCategory = {
-  id: string;
-  label?: string;
-  icon?: string;
-  description?: string;
-  visible?: boolean;
-};
-
-export type HospitalLocation = {
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-};
-
-export type HospitalContact = {
-  phone?: string;
-  email?: string;
-  website?: string;
-};
-
-export type HospitalMeta = {
-  rating?: number;
-  reviewCount?: number;
-  emergency?: boolean;
-  [key: string]: unknown;
-};
-
-export type WorkingDay = {
-  open?: string;
-  close?: string;
-  closed?: boolean;
-};
-
-export type Doctor = {
-  id: string;
-  name?: string;
-  specialty?: string;
-  qualification?: string;
-  experience?: string;
-  image?: string;
-  bio?: string;
-  languages?: string[];
-  social?: { linkedin?: string; [key: string]: unknown };
-  visible?: boolean;
-};
-
-export type Hospital = {
-  id: string;
-  slug?: string;
-  name?: string;
-  category?: string;
-  tagline?: string;
-  image?: string;
-  location?: HospitalLocation;
-  contact?: HospitalContact;
-  meta?: HospitalMeta;
-  workingHours?: Record<string, WorkingDay>;
-  facilities?: string[];
-  doctors?: Doctor[];
-  visible?: boolean;
-};
-
 function asArray<T>(v: unknown): T[] {
   if (!Array.isArray(v)) return [];
   return v as T[];
@@ -197,15 +134,7 @@ export function salesReps(mod: ContentModulePayload): SalesRep[] {
   return getCollectionItems<SalesRep>(mod, "reps");
 }
 
-export function hospitalCategories(mod: ContentModulePayload): HospitalCategory[] {
-  return getCollectionItems<HospitalCategory>(mod, "categories");
-}
-
-export function hospitals(mod: ContentModulePayload): Hospital[] {
-  return getCollectionItems<Hospital>(mod, "hospitals");
-}
-
-/** Count of primary content entries per module (posts, items, hospitals, etc.). */
+/** Count of primary content entries per module (posts, list entries, etc.). */
 export function getModuleItemCount(
   mod: ContentModulePayload,
   key: ModuleKey,
@@ -225,8 +154,6 @@ export function getModuleItemCount(
       return howItWorksSteps(mod).length;
     case "sales_team":
       return salesReps(mod).length;
-    case "hospitals_bundle":
-      return hospitals(mod).length;
     default:
       return 0;
   }
@@ -247,8 +174,6 @@ export function primaryCollectionForModule(key: ModuleKey): string {
       return "steps";
     case "sales_team":
       return "reps";
-    case "hospitals_bundle":
-      return "categories";
     default:
       return "items";
   }
