@@ -299,7 +299,7 @@ export function NyraDashboard() {
 
   if (!authReady) {
     return (
-      <div className="flex h-svh items-center justify-center bg-[var(--background)] text-[var(--foreground-secondary)]">
+      <div className="flex h-svh items-center justify-center bg-[var(--background)] text-[var(--foreground-secondary)] leading-relaxed">
         Loading…
       </div>
     );
@@ -307,32 +307,33 @@ export function NyraDashboard() {
 
   if (!token) {
     return (
-      <div className="nyra-shell-bg flex min-h-svh w-full items-center justify-center bg-[var(--background)] p-4">
-        <div className="neu-surface w-full max-w-md rounded-2xl p-6 sm:p-8">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative h-10 w-16 shrink-0">
+      <div className="nyra-shell-bg flex min-h-svh w-full items-center justify-center bg-[var(--background)] p-4 sm:p-8">
+        <div className="neu-panel w-full max-w-md p-8 sm:p-10">
+          <div className="mb-8 flex flex-col items-center text-center sm:mb-10">
+            <span className="neu-pill mb-5">
+              <span aria-hidden>✦</span> NyraAI
+            </span>
+            <div className="relative mx-auto mb-4 h-12 w-20">
               <Image
                 src="/nyraai-logo.png"
                 alt=""
-                width={120}
-                height={48}
-                className="h-10 w-16 object-contain object-left"
+                width={160}
+                height={64}
+                className="h-12 w-20 object-contain"
                 priority
               />
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                NyraAI
-              </p>
-              <h1 className="text-lg font-semibold text-[var(--foreground)]">
-                Content console
-              </h1>
-            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-[1.65rem]">
+              Content console
+            </h1>
+            <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-[var(--foreground-secondary)]">
+              Sign in to manage website modules and published content.
+            </p>
           </div>
           <form className="space-y-4" onSubmit={handleLogin}>
             {error && (
               <p
-                className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-[13px] text-[var(--foreground)]"
+                className="rounded-[var(--radius-panel)] bg-[color-mix(in_srgb,var(--foreground)_6%,var(--surface))] px-4 py-3 text-[13px] leading-relaxed text-[var(--text-heading)]"
                 role="alert">
                 {error}
               </p>
@@ -346,7 +347,7 @@ export function NyraDashboard() {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="neu-surface-inset w-full rounded-xl px-3 py-2.5 text-[14px] text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+                className="neu-surface-inset neu-input-focus w-full rounded-xl px-3 py-2.5 text-[14px] text-[var(--foreground)]"
                 required
               />
             </label>
@@ -359,14 +360,14 @@ export function NyraDashboard() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="neu-surface-inset w-full rounded-xl px-3 py-2.5 text-[14px] text-[var(--foreground)] outline-none ring-[var(--accent)] focus:ring-2"
+                className="neu-surface-inset neu-input-focus w-full rounded-xl px-3 py-2.5 text-[14px] text-[var(--foreground)]"
                 required
               />
             </label>
             <button
               type="submit"
               disabled={authBusy}
-              className="neu-surface flex w-full items-center justify-center rounded-xl py-3 text-[14px] font-semibold text-[var(--foreground)] transition hover:opacity-95 disabled:opacity-60">
+              className="neu-btn-primary mt-2 flex w-full items-center justify-center py-3.5 text-[14px] disabled:opacity-60">
               {authBusy ? "Signing in…" : "Sign in"}
             </button>
           </form>
@@ -378,12 +379,12 @@ export function NyraDashboard() {
   return (
     <div className="nyra-shell-bg flex h-svh max-h-svh min-h-0 w-full overflow-hidden bg-[var(--background)]">
       <aside
-        className={`flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--background-subtle)] transition-[width] duration-300 ease-out ${
+        className={`flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-solid [border-color:var(--divider-soft)] bg-[var(--background)] transition-[width] duration-300 ease-out ${
           sidebarCollapsed
             ? "w-[var(--sidebar-collapsed)] min-w-[var(--sidebar-collapsed)]"
             : "w-[var(--sidebar-expanded)] min-w-[var(--sidebar-expanded)]"
         }`}>
-        <div className="shrink-0 border-b border-[var(--border)] px-3 pb-3 pt-3">
+        <div className="shrink-0 border-b border-solid [border-color:var(--divider-soft)] px-3 pb-3 pt-3">
           <div
             className={
               sidebarCollapsed
@@ -402,7 +403,7 @@ export function NyraDashboard() {
               <ChevronIcon collapsed={sidebarCollapsed} />
             </button>
             {!sidebarCollapsed && (
-              <div className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5">
+              <div className="neu-surface-sm min-w-0 flex-1 px-3 py-2.5">
                 <div className="flex items-center gap-2.5">
                   <div className="relative h-9 w-14 shrink-0">
                     <Image
@@ -445,7 +446,7 @@ export function NyraDashboard() {
               } ${
                 active === item.id
                   ? "sidebar-nav-active"
-                  : "text-[var(--foreground-secondary)] hover:bg-[var(--accent-fill)] hover:text-[var(--foreground)]"
+                  : "text-[var(--foreground-secondary)] hover:bg-[var(--accent-fill)] hover:text-[var(--text-heading)] active:shadow-[var(--shadow-inset-press)]"
               }`}>
               <span
                 className="flex h-8 w-8 shrink-0 items-center justify-center text-[15px] leading-none"
@@ -461,7 +462,7 @@ export function NyraDashboard() {
           ))}
         </nav>
 
-        <div className="shrink-0 space-y-2 border-t border-[var(--border)] px-3 pb-4 pt-3">
+        <div className="shrink-0 space-y-2 border-t border-solid [border-color:var(--divider-soft)] px-3 pb-4 pt-3">
           <button
             type="button"
             onClick={handleLogout}
@@ -495,12 +496,12 @@ export function NyraDashboard() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 border-b border-[var(--border)] bg-[var(--background)] px-3 py-3 sm:px-5">
+        <header className="shrink-0 border-b border-solid [border-color:var(--divider-soft)] bg-[var(--background)] px-3 py-4 sm:px-6">
           <div className="mx-auto flex max-w-[1600px] min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="min-w-0 sm:max-w-xl">
               <p className="truncate text-[12px] text-[var(--foreground-secondary)]">
                 API base:{" "}
-                <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[11px]">
+                <code className="neu-surface-inset rounded-lg px-2 py-0.5 text-[11px] text-[var(--foreground)]">
                   {getApiBase()}
                 </code>
               </p>
@@ -511,13 +512,18 @@ export function NyraDashboard() {
           </div>
         </header>
 
-        <main className="dashboard-scroll min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-y-contain p-3 sm:p-4 md:space-y-8 md:p-6">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+        <main className="dashboard-scroll min-h-0 flex-1 space-y-8 overflow-x-hidden overflow-y-auto overscroll-y-contain p-5 sm:p-6 md:space-y-10 md:p-8">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-3xl">
+              {active === "overview" && (
+                <span className="neu-pill mb-4 inline-flex">
+                  <span aria-hidden>◆</span> Overview
+                </span>
+              )}
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-heading)] sm:text-[1.75rem]">
                 {headerTitle}
               </h1>
-              <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-[var(--foreground-secondary)]">
+              <p className="mt-3 max-w-2xl text-[15px] font-normal leading-[1.65] text-[var(--foreground-secondary)]">
                 {headerSubtitle}
               </p>
             </div>
@@ -525,53 +531,53 @@ export function NyraDashboard() {
 
           {error && (
             <div
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-[14px] text-[var(--foreground)]"
+              className="rounded-[var(--radius-panel)] bg-[color-mix(in_srgb,var(--foreground)_6%,var(--surface))] px-5 py-4 text-[14px] leading-relaxed text-[var(--text-heading)] shadow-[var(--shadow-button)]"
               role="alert">
               {error}
             </div>
           )}
 
           {active === "overview" ? (
-            <section className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
-                  Modules
-                </h2>
+            <section className="space-y-6 sm:space-y-8">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <span className="neu-pill">
+                  <span aria-hidden>◇</span> Modules
+                </span>
                 <button
                   type="button"
                   onClick={() => void loadOverviewCounts()}
                   disabled={overviewLoading}
-                  className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-50">
+                  className="neu-btn-default px-5 py-2.5 text-[12px] disabled:opacity-50">
                   {overviewLoading ? "Refreshing…" : "Refresh"}
                 </button>
               </div>
-              <div className="neu-surface overflow-hidden p-0">
+              <div className="neu-panel overflow-hidden p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[360px] text-left text-[13px]">
+                  <table className="w-full min-w-[360px] text-left text-[13px] leading-[1.65]">
                     <thead>
                       <tr className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
-                        <th className="neu-surface-inset-deep px-4 py-3 sm:px-5">
+                        <th className="neu-surface-inset-deep px-5 py-4 first:rounded-tl-[var(--radius-panel)]">
                           Module
                         </th>
-                        <th className="neu-surface-inset-deep px-4 py-3 text-right sm:px-5">
+                        <th className="neu-surface-inset-deep px-5 py-4 text-right last:rounded-tr-[var(--radius-panel)]">
                           Count
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
+                    <tbody>
                       {MODULE_KEYS.map((key) => {
                         const count = overviewCounts[key];
                         const hasCount = typeof count === "number";
                         return (
                           <tr
                             key={key}
-                            className="cursor-pointer transition hover:bg-[var(--accent-fill)]"
+                            className="cursor-pointer transition hover:bg-[var(--accent-fill)] active:bg-[var(--accent-fill-active)]"
                             onClick={() => setSection(key)}
                             title={`Open ${OVERVIEW_MODULE_LABELS[key]}`}>
-                            <td className="px-4 py-3 font-medium text-[var(--foreground)] sm:px-5">
+                            <td className="px-5 py-4 font-medium text-[var(--text-heading)]">
                               {OVERVIEW_MODULE_LABELS[key]}
                             </td>
-                            <td className="px-4 py-3 text-right tabular-nums text-[var(--foreground)] sm:px-5">
+                            <td className="px-5 py-4 text-right tabular-nums text-[var(--text-heading)]">
                               {overviewLoading && !hasCount
                                 ? "…"
                                 : hasCount
@@ -585,27 +591,27 @@ export function NyraDashboard() {
                   </table>
                 </div>
               </div>
-              <p className="text-[13px] leading-relaxed text-[var(--foreground-secondary)]">
+              <p className="text-[13px] leading-[1.65] text-[var(--foreground-secondary)]">
                 Counts reflect items saved in each module (posts, list entries,
                 hospitals, etc.). Click a row to open the module. Public site
                 should use{" "}
-                <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-[12px]">
+                <code className="neu-surface-inset rounded-lg px-2 py-0.5 text-[12px] text-[var(--foreground)]">
                   /api/public-content
                 </code>{" "}
                 for published content.
               </p>
             </section>
           ) : (
-            <section className="space-y-4">
+            <section className="space-y-6 sm:space-y-8">
               {!isSimplifiedModuleView && (
                 <>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     {moduleData && (
                       <>
-                        <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--foreground)]">
+                        <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] font-medium text-[var(--text-heading)]">
                           v{moduleData.version}
                         </span>
-                        <span className="neu-surface-inset rounded-lg px-3 py-1.5 text-[12px] capitalize text-[var(--foreground-secondary)]">
+                        <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] capitalize text-[var(--foreground-secondary)]">
                           {moduleData.status ?? "unknown"}
                         </span>
                         <span className="text-[12px] text-[var(--foreground-secondary)]">
@@ -614,12 +620,12 @@ export function NyraDashboard() {
                       </>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
                       onClick={() => void loadModule()}
                       disabled={moduleLoading}
-                      className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:opacity-90 disabled:opacity-50">
+                      className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-50">
                       {moduleLoading ? "Loading…" : "Refetch module"}
                     </button>
                     <button
@@ -628,7 +634,7 @@ export function NyraDashboard() {
                       disabled={
                         moduleLoading || !moduleData || moduleData.status === "published"
                       }
-                      className="rounded-lg bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[var(--background)] transition hover:opacity-90 disabled:opacity-40">
+                      className="neu-btn-primary px-5 py-2.5 text-[12px] disabled:opacity-40">
                       Publish
                     </button>
                     <button
@@ -637,25 +643,25 @@ export function NyraDashboard() {
                       disabled={
                         moduleLoading || !moduleData || moduleData.status !== "published"
                       }
-                      className="rounded-lg border border-[var(--border)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
+                      className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
                       Unpublish
                     </button>
                     <button
                       type="button"
                       onClick={copyJson}
                       disabled={!jsonPreview}
-                      className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40">
+                      className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
                       Copy JSON
                     </button>
                   </div>
                 </>
               )}
               {moduleLoading && !moduleData ? (
-                <p className="text-[14px] text-[var(--foreground-secondary)]">
+                <p className="text-[14px] leading-relaxed text-[var(--foreground-secondary)]">
                   Loading module…
                 </p>
               ) : moduleData && token ? (
-                <div className="space-y-4">
+                <div className="space-y-6 sm:space-y-8">
                   <ModuleWorkspace
                     moduleKey={active as ModuleKey}
                     token={token}
@@ -665,11 +671,11 @@ export function NyraDashboard() {
                     onError={setError}
                   />
                   {!isSimplifiedModuleView && (
-                    <details className="group rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+                    <details className="group neu-panel p-5 sm:p-6">
                       <summary className="cursor-pointer text-[12px] font-semibold text-[var(--foreground-secondary)]">
                         Raw module JSON
                       </summary>
-                      <pre className="dashboard-scroll mt-3 max-h-[min(40vh,360px)] overflow-auto text-[11px] leading-relaxed text-[var(--foreground)] sm:text-[12px]">
+                      <pre className="dashboard-scroll mt-4 max-h-[min(40vh,360px)] overflow-auto border-t border-solid [border-color:var(--divider-soft)] pt-4 text-[11px] leading-relaxed text-[var(--text-heading)] sm:text-[12px]">
                         {jsonPreview || "{}"}
                       </pre>
                     </details>

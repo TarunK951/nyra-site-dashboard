@@ -152,7 +152,7 @@ export function HowItWorksEditor({
         disabled={busy}>
         Add step
       </ToolbarButton>
-      <div className="neu-surface overflow-hidden p-0">
+      <div className="neu-panel overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-[13px]">
             <thead>
@@ -164,7 +164,7 @@ export function HowItWorksEditor({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border)]">
+            <tbody>
               {items.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-[var(--foreground-secondary)]">

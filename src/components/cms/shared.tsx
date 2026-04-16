@@ -4,15 +4,16 @@ import type { ReactNode } from "react";
 
 /** Use `invalid` when the field failed validation (red ring). */
 export function inputClass(invalid?: boolean) {
-  return `neu-surface-inset w-full rounded-xl px-3 py-2.5 text-[14px] text-[var(--foreground)] outline-none ${
-    invalid
-      ? "ring-2 ring-[var(--trend-down)]"
-      : "ring-[var(--accent)] focus:ring-2"
-  }`;
+  const base =
+    "neu-surface-inset w-full rounded-[var(--radius-input)] px-4 py-3 text-[14px] text-[var(--text-heading)] outline-none";
+  if (invalid) {
+    return `${base} ring-2 ring-[var(--trend-down)] focus-visible:ring-2 focus-visible:ring-[var(--trend-down)]`;
+  }
+  return `${base} neu-input-focus`;
 }
 
 export function labelClass() {
-  return "mb-1.5 block text-[12px] font-medium text-[var(--foreground-secondary)]";
+  return "mb-2 block text-[12px] font-medium text-[var(--foreground-secondary)]";
 }
 
 export function Field({
@@ -30,7 +31,7 @@ export function Field({
       <span className={labelClass()}>{label}</span>
       {children}
       {error ? (
-        <p className="mt-1 text-[12px] text-[var(--trend-down)]" role="alert">
+        <p className="mt-1.5 text-[12px] text-[var(--trend-down)]" role="alert">
           {error}
         </p>
       ) : null}
@@ -43,7 +44,7 @@ export function FormAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
     <p
-      className="rounded-lg border border-[var(--trend-down)] bg-[var(--surface-muted)] px-3 py-2 text-[13px] text-[var(--trend-down)]"
+      className="rounded-[var(--radius-panel)] bg-[color-mix(in_srgb,var(--trend-down)_8%,var(--surface))] px-4 py-3 text-[13px] leading-relaxed text-[var(--trend-down)]"
       role="alert">
       {message}
     </p>
@@ -64,32 +65,32 @@ export function Modal({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cms-modal-title">
       <button
         type="button"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[color-mix(in_srgb,var(--foreground)_10%,transparent)]"
         aria-label="Close dialog"
         onClick={onClose}
       />
       <div
-        className="relative z-10 neu-surface max-h-[min(90vh,880px)] w-full max-w-2xl overflow-hidden rounded-2xl shadow-2xl">
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+        className="relative z-10 max-h-[min(90vh,880px)] w-full max-w-2xl overflow-hidden rounded-[var(--radius-panel)] bg-[var(--surface)] shadow-[var(--shadow-elevated)]">
+        <div className="flex items-center justify-between border-b border-solid [border-color:var(--divider-soft)] px-6 py-5 sm:px-8">
           <h3
             id="cms-modal-title"
-            className="text-lg font-semibold text-[var(--foreground)]">
+            className="text-lg font-semibold leading-snug tracking-tight text-[var(--text-heading)]">
             {title}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-2 py-1 text-[20px] leading-none text-[var(--foreground-secondary)] transition hover:bg-[var(--accent-fill)]">
+            className="neu-surface-sm flex h-10 w-10 shrink-0 items-center justify-center text-[22px] leading-none text-[var(--text-muted)]">
             ×
           </button>
         </div>
-        <div className="dashboard-scroll max-h-[calc(90vh-5rem)] overflow-y-auto p-5">
+        <div className="dashboard-scroll max-h-[calc(90vh-5rem)] overflow-y-auto p-6 sm:p-8">
           {children}
         </div>
       </div>
@@ -116,32 +117,32 @@ export function ConfirmDialog({
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--foreground)_12%,transparent)] p-4 sm:p-6">
       <div
-        className="neu-surface w-full max-w-md rounded-2xl p-6 shadow-xl"
+        className="neu-panel w-full max-w-md p-7 sm:p-8"
         role="alertdialog"
         aria-labelledby="confirm-title">
         <h4
           id="confirm-title"
-          className="text-base font-semibold text-[var(--foreground)]">
+          className="text-base font-semibold text-[var(--text-heading)]">
           {title}
         </h4>
-        <p className="mt-2 text-[14px] text-[var(--foreground-secondary)]">
+        <p className="mt-4 text-[14px] leading-[1.65] text-[var(--foreground-secondary)]">
           {message}
         </p>
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <div className="mt-8 flex flex-wrap justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-lg border border-[var(--border)] px-4 py-2 text-[13px] font-semibold text-[var(--foreground)] transition hover:bg-[var(--accent-fill)] disabled:opacity-50">
+            className="neu-btn-default px-6 py-2.5 text-[13px] disabled:opacity-50">
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="rounded-lg bg-[var(--trend-down)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
+            className="rounded-[var(--radius-button)] bg-[color-mix(in_srgb,var(--trend-down)_12%,var(--surface))] px-6 py-2.5 text-[13px] font-semibold text-[var(--trend-down)] shadow-[var(--shadow-button)] transition hover:opacity-90 active:shadow-[var(--shadow-inset-press)] disabled:opacity-50">
             {busy ? "…" : confirmLabel ?? "Delete"}
           </button>
         </div>
@@ -163,10 +164,10 @@ export function ToolbarButton({
 }) {
   const cls =
     variant === "primary"
-      ? "rounded-lg bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[var(--background)] transition hover:opacity-90 disabled:opacity-40"
+      ? "neu-btn-primary px-5 py-2.5 text-[13px] disabled:opacity-40"
       : variant === "danger"
-        ? "rounded-lg border border-[var(--border)] px-3 py-2 text-[12px] font-semibold text-[var(--trend-down)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40"
-        : "rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-semibold text-[var(--foreground)] transition hover:opacity-90 disabled:opacity-50";
+        ? "rounded-[var(--radius-button)] bg-[color-mix(in_srgb,var(--trend-down)_10%,var(--surface))] px-4 py-2.5 text-[12px] font-semibold text-[var(--trend-down)] shadow-[var(--shadow-button)] transition hover:opacity-90 active:shadow-[var(--shadow-inset-press)] disabled:opacity-40"
+        : "neu-btn-default px-4 py-2.5 text-[13px] disabled:opacity-50";
   return (
     <button type="button" className={cls} onClick={onClick} disabled={disabled}>
       {children}

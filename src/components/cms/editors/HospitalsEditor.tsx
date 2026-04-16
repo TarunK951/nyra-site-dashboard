@@ -474,20 +474,20 @@ export function HospitalsEditor({
         <button
           type="button"
           onClick={() => setTab("categories")}
-          className={`rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
+          className={`rounded-full px-4 py-2 text-[12px] font-semibold transition ${
             tab === "categories"
-              ? "bg-[var(--accent)] text-[var(--background)]"
-              : "border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--foreground)]"
+              ? "neu-btn-primary"
+              : "neu-btn-default text-[var(--foreground-secondary)]"
           }`}>
           Categories
         </button>
         <button
           type="button"
           onClick={() => setTab("hospitals")}
-          className={`rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
+          className={`rounded-full px-4 py-2 text-[12px] font-semibold transition ${
             tab === "hospitals"
-              ? "bg-[var(--accent)] text-[var(--background)]"
-              : "border border-[var(--border)] bg-[var(--surface-muted)] text-[var(--foreground)]"
+              ? "neu-btn-primary"
+              : "neu-btn-default text-[var(--foreground-secondary)]"
           }`}>
           Hospitals
         </button>
@@ -506,7 +506,7 @@ export function HospitalsEditor({
             disabled={busy}>
             Add category
           </ToolbarButton>
-          <div className="neu-surface overflow-hidden p-0">
+          <div className="neu-panel overflow-hidden p-0">
             <table className="w-full min-w-[400px] text-left text-[13px]">
               <thead>
                 <tr className="text-[11px] font-semibold text-[var(--foreground-secondary)]">
@@ -516,7 +516,7 @@ export function HospitalsEditor({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody>
                 {categories.length === 0 ? (
                   <tr>
                     <td
@@ -574,7 +574,7 @@ export function HospitalsEditor({
               Add at least one category first.
             </p>
           )}
-          <div className="neu-surface overflow-hidden p-0">
+          <div className="neu-panel overflow-hidden p-0">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-left text-[13px]">
                 <thead>
@@ -586,7 +586,7 @@ export function HospitalsEditor({
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border)]">
+                <tbody>
                   {hospList.length === 0 ? (
                     <tr>
                       <td

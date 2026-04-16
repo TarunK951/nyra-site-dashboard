@@ -341,33 +341,37 @@ export function BlogsEditor({
   ]);
 
   return (
-    <div className="space-y-4">
-      <ToolbarButton variant="primary" onClick={openCreate} disabled={busy}>
-        Add blog post
-      </ToolbarButton>
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex justify-start">
+        <ToolbarButton variant="primary" onClick={openCreate} disabled={busy}>
+          Add blog post
+        </ToolbarButton>
+      </div>
 
-      <div className="neu-surface overflow-hidden p-0">
+      <div className="neu-panel overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-[13px]">
+          <table className="w-full min-w-[800px] text-left text-[13px] leading-[1.65]">
             <thead>
-              <tr className="text-[11px] font-semibold text-[var(--foreground-secondary)]">
-                <th className="neu-surface-inset-deep px-4 py-3">Title</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Slug</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Category</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Published</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Author</th>
-                <th className="neu-surface-inset-deep px-4 py-3">Excerpt</th>
-                <th className="neu-surface-inset-deep px-2 py-3 text-right">
+              <tr className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+                <th className="neu-surface-inset-deep px-4 py-4 first:rounded-tl-[var(--radius-panel)]">
+                  Title
+                </th>
+                <th className="neu-surface-inset-deep px-3 py-4">Slug</th>
+                <th className="neu-surface-inset-deep px-3 py-4">Category</th>
+                <th className="neu-surface-inset-deep px-3 py-4">Published</th>
+                <th className="neu-surface-inset-deep px-3 py-4">Author</th>
+                <th className="neu-surface-inset-deep px-4 py-4">Excerpt</th>
+                <th className="neu-surface-inset-deep px-3 py-4 text-right last:rounded-tr-[var(--radius-panel)]">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border)]">
+            <tbody>
               {tableRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-4 py-8 text-center text-[var(--foreground-secondary)]">
+                    className="px-5 py-12 text-center text-[15px] leading-[1.65] text-[var(--foreground-secondary)] sm:py-14">
                     No published posts yet. Add a post (status will be saved as
                     published) — it will show here after the blogs module is
                     published on the site.
@@ -375,15 +379,19 @@ export function BlogsEditor({
                 </tr>
               ) : (
                 tableRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--accent-fill)]">
-                    <td className="px-4 py-3 font-medium text-[var(--foreground)]">
+                  <tr
+                    key={row.id}
+                    className="transition hover:bg-[var(--accent-fill)]">
+                    <td className="px-4 py-4 font-medium text-[var(--text-heading)]">
                       {row.title}
                     </td>
-                    <td className="max-w-[140px] truncate px-2 py-3 font-mono text-[12px]">
+                    <td className="max-w-[140px] truncate px-3 py-4 font-mono text-[12px] text-[var(--text-heading)]">
                       {row.slug}
                     </td>
-                    <td className="px-2 py-3">{row.category ?? "—"}</td>
-                    <td className="whitespace-nowrap px-2 py-3 text-[12px] text-[var(--foreground-secondary)]">
+                    <td className="px-3 py-4 text-[var(--text-heading)]">
+                      {row.category ?? "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-[12px] text-[var(--foreground-secondary)]">
                       {row.publishedAt
                         ? new Date(row.publishedAt).toLocaleString(undefined, {
                             dateStyle: "medium",
@@ -391,11 +399,13 @@ export function BlogsEditor({
                           })
                         : "—"}
                     </td>
-                    <td className="px-2 py-3">{row.author?.name ?? "—"}</td>
-                    <td className="max-w-[280px] truncate px-4 py-3 text-[12px] text-[var(--foreground-secondary)]">
+                    <td className="px-3 py-4 text-[var(--text-heading)]">
+                      {row.author?.name ?? "—"}
+                    </td>
+                    <td className="max-w-[280px] truncate px-4 py-4 text-[12px] text-[var(--foreground-secondary)]">
                       {row.excerpt ?? "—"}
                     </td>
-                    <td className="whitespace-nowrap px-2 py-3 text-right">
+                    <td className="whitespace-nowrap px-3 py-4 text-right">
                       <RowEditButton
                         onClick={() => openEdit(row)}
                         disabled={busy}
@@ -419,18 +429,18 @@ export function BlogsEditor({
         open={modalOpen}
         title={editingSnapshot ? "Edit blog post" : "New blog post"}
         onClose={() => !busy && closeModal()}>
-        <div className="space-y-3">
+        <div className="space-y-5">
           <FormAlert message={formError} />
-          <p className="text-[12px] text-[var(--foreground-secondary)]">
+          <p className="text-[13px] leading-relaxed text-[var(--foreground-secondary)]">
             {editingSnapshot
               ? "Update fields and save. The post stays published when saved."
               : "Required fields match the content API blog post shape. The post is created with "}
             {!editingSnapshot && (
               <>
-                <code className="rounded bg-[var(--surface-muted)] px-1">
+                <code className="neu-surface-inset rounded-[var(--radius-button)] px-2 py-0.5 text-[12px] text-[var(--text-heading)]">
                   status: published
                 </code>{" "}
-                so it can appear in this table and on the public site when the
+                so it can appear in this list and on the public site when the
                 module is published.
               </>
             )}
@@ -538,7 +548,7 @@ export function BlogsEditor({
               placeholder="ai, healthcare"
             />
           </Field>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-wrap justify-end gap-3 pt-4">
             <ToolbarButton onClick={closeModal} disabled={busy}>
               Cancel
             </ToolbarButton>

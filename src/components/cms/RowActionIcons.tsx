@@ -40,11 +40,6 @@ export function TrashIcon({ className }: { className?: string }) {
   );
 }
 
-const editBtn =
-  "inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--accent)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40";
-const delBtn =
-  "inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--trend-down)] transition hover:bg-[var(--accent-fill)] disabled:opacity-40";
-
 export function RowEditButton({
   onClick,
   disabled,
@@ -62,7 +57,7 @@ export function RowEditButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={editBtn}
+      className="neu-icon-btn shrink-0 disabled:opacity-40"
       aria-label={ariaLabel}>
       <EditIcon />
     </button>
@@ -86,7 +81,7 @@ export function RowDeleteButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={delBtn}
+      className="neu-icon-btn neu-icon-btn--danger shrink-0 disabled:opacity-40"
       aria-label={ariaLabel}>
       <TrashIcon />
     </button>

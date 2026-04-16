@@ -170,7 +170,7 @@ export function TestimonialsEditor({
           Add testimonial
         </ToolbarButton>
       </div>
-      <div className="neu-surface overflow-hidden p-0">
+      <div className="neu-panel overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[480px] text-left text-[13px]">
             <thead>
@@ -182,7 +182,7 @@ export function TestimonialsEditor({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border)]">
+            <tbody>
               {items.length === 0 ? (
                 <tr>
                   <td
