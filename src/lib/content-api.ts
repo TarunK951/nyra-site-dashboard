@@ -6,6 +6,13 @@ const JSON_HEADERS = {
 } as const;
 
 export const TOKEN_STORAGE_KEY = "nyra-access-token";
+export const REFRESH_TOKEN_STORAGE_KEY = "nyra-refresh-token";
+
+/** Standard login + refresh responses; backend may wrap tokens in `data`. */
+export type AuthTokens = {
+  accessToken: string;
+  refreshToken?: string;
+};
 
 export type ContentModulePayload = {
   version: number;
@@ -27,6 +34,96 @@ function extractAccessToken(body: unknown): string | null {
   if (typeof o.accessToken === "string") return o.accessToken;
   if (typeof o.token === "string") return o.token;
   return null;
+}
+
+function extractRefreshToken(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const o = body as Record<string, unknown>;
+  const inner = o.data;
+  if (inner && typeof inner === "object") {
+    const d = inner as Record<string, unknown>;
+    if (typeof d.refreshToken === "string") return d.refreshToken;
+  }
+  if (typeof o.refreshToken === "string") return o.refreshToken;
+  return null;
+}
+
+function readRefreshTokenFromSession(): string | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    return sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Persist access (and optionally refresh) in sessionStorage; used after login and token rotation. */
+export function persistSessionTokens(accessToken: string, refreshToken?: string | null): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+    if (refreshToken !== undefined) {
+      if (refreshToken) {
+        sessionStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+      } else {
+        sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearSessionTokens(): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clear both tokens from session (e.g. sign out). */
+export function clearPersistedSessionTokens(): void {
+  clearSessionTokens();
+}
+
+function dispatchTokensUpdated(accessToken: string, refreshToken?: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("nyra-tokens-updated", {
+      detail: { accessToken, refreshToken },
+    }),
+  );
+}
+
+function dispatchAuthCleared(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("nyra-auth-cleared"));
+}
+
+/**
+ * Exchange refresh token for new access token (and optional rotated refresh).
+ * POST /api/auth/refresh — body `{ refreshToken }` (adjust path if your backend differs).
+ */
+export async function refreshAccessToken(refreshToken: string): Promise<AuthTokens> {
+  const res = await fetch(`${getApiBase()}/api/auth/refresh`, {
+    method: "POST",
+    cache: "no-store",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ refreshToken }),
+  });
+  const body: unknown = await res.json().catch(() => null);
+  const accessToken = extractAccessToken(body);
+  if (!res.ok || !accessToken) {
+    throw new Error(extractMessage(body, "Session expired. Please sign in again."));
+  }
+  const newRefresh = extractRefreshToken(body);
+  return {
+    accessToken,
+    ...(newRefresh ? { refreshToken: newRefresh } : {}),
+  };
 }
 
 function formatValidationDetail(detail: unknown): string | null {
@@ -76,7 +173,7 @@ function throwIfConflict(res: Response, body: unknown): void {
   }
 }
 
-export async function login(email: string, password: string): Promise<string> {
+export async function login(email: string, password: string): Promise<AuthTokens> {
   const res = await fetch(`${getApiBase()}/api/auth/login`, {
     method: "POST",
     cache: "no-store",
@@ -84,17 +181,30 @@ export async function login(email: string, password: string): Promise<string> {
     body: JSON.stringify({ email, password }),
   });
   const body: unknown = await res.json().catch(() => null);
-  const token = extractAccessToken(body);
-  if (!res.ok || !token) {
+  const accessToken = extractAccessToken(body);
+  if (!res.ok || !accessToken) {
     throw new Error(extractMessage(body, res.statusText || "Login failed"));
   }
-  return token;
+  const refreshToken = extractRefreshToken(body);
+  return {
+    accessToken,
+    ...(refreshToken ? { refreshToken } : {}),
+  };
+}
+
+async function parseJsonBody(res: Response): Promise<unknown> {
+  const ct = res.headers.get("content-type");
+  if (ct?.includes("application/json")) {
+    return res.json().catch(() => null);
+  }
+  return null;
 }
 
 async function authFetch(
   path: string,
   token: string,
   init?: RequestInit,
+  allowRefreshRetry = true,
 ): Promise<{ res: Response; body: unknown }> {
   const res = await fetch(`${getApiBase()}${path}`, {
     cache: "no-store",
@@ -105,11 +215,31 @@ async function authFetch(
       ...(init?.headers as Record<string, string>),
     },
   });
-  let body: unknown = null;
-  const ct = res.headers.get("content-type");
-  if (ct?.includes("application/json")) {
-    body = await res.json().catch(() => null);
+  let body: unknown = await parseJsonBody(res);
+
+  if (
+    res.status === 401 &&
+    allowRefreshRetry &&
+    typeof sessionStorage !== "undefined"
+  ) {
+    const rt = readRefreshTokenFromSession();
+    if (rt) {
+      try {
+        const next = await refreshAccessToken(rt);
+        if (next.refreshToken !== undefined) {
+          persistSessionTokens(next.accessToken, next.refreshToken);
+        } else {
+          persistSessionTokens(next.accessToken);
+        }
+        dispatchTokensUpdated(next.accessToken, next.refreshToken);
+        return authFetch(path, next.accessToken, init, false);
+      } catch {
+        clearSessionTokens();
+        dispatchAuthCleared();
+      }
+    }
   }
+
   return { res, body };
 }
 
@@ -117,6 +247,7 @@ async function authFetchMultipart(
   path: string,
   token: string,
   formData: FormData,
+  allowRefreshRetry = true,
 ): Promise<{ res: Response; body: unknown }> {
   const res = await fetch(`${getApiBase()}${path}`, {
     method: "POST",
@@ -126,11 +257,31 @@ async function authFetchMultipart(
     },
     body: formData,
   });
-  let body: unknown = null;
-  const ct = res.headers.get("content-type");
-  if (ct?.includes("application/json")) {
-    body = await res.json().catch(() => null);
+  let body: unknown = await parseJsonBody(res);
+
+  if (
+    res.status === 401 &&
+    allowRefreshRetry &&
+    typeof sessionStorage !== "undefined"
+  ) {
+    const rt = readRefreshTokenFromSession();
+    if (rt) {
+      try {
+        const next = await refreshAccessToken(rt);
+        if (next.refreshToken !== undefined) {
+          persistSessionTokens(next.accessToken, next.refreshToken);
+        } else {
+          persistSessionTokens(next.accessToken);
+        }
+        dispatchTokensUpdated(next.accessToken, next.refreshToken);
+        return authFetchMultipart(path, next.accessToken, formData, false);
+      } catch {
+        clearSessionTokens();
+        dispatchAuthCleared();
+      }
+    }
   }
+
   return { res, body };
 }
 

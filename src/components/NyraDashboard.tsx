@@ -14,9 +14,11 @@ import {
 import { ModuleWorkspace } from "@/components/cms/ModuleWorkspace";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
+  clearPersistedSessionTokens,
   ConflictError,
   fetchModule,
   login,
+  persistSessionTokens,
   publishModule,
   TOKEN_STORAGE_KEY,
   unpublishModule,
@@ -137,14 +139,22 @@ export function NyraDashboard() {
     setAuthReady(true);
   }, []);
 
-  const persistToken = useCallback((t: string | null) => {
-    setToken(t);
-    try {
-      if (t) sessionStorage.setItem(TOKEN_STORAGE_KEY, t);
-      else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+  useEffect(() => {
+    const onTokensUpdated = (e: Event) => {
+      const d = (e as CustomEvent<{ accessToken?: string }>).detail;
+      if (d?.accessToken) setToken(d.accessToken);
+    };
+    const onAuthCleared = () => {
+      setToken(null);
+      setModuleData(null);
+      setOverviewCounts({});
+    };
+    window.addEventListener("nyra-tokens-updated", onTokensUpdated);
+    window.addEventListener("nyra-auth-cleared", onAuthCleared);
+    return () => {
+      window.removeEventListener("nyra-tokens-updated", onTokensUpdated);
+      window.removeEventListener("nyra-auth-cleared", onAuthCleared);
+    };
   }, []);
 
   const loadOverviewCounts = useCallback(async () => {
@@ -216,8 +226,12 @@ export function NyraDashboard() {
     setAuthBusy(true);
     setError(null);
     try {
-      const t = await login(email.trim(), password);
-      persistToken(t);
+      const tokens = await login(email.trim(), password);
+      persistSessionTokens(
+        tokens.accessToken,
+        tokens.refreshToken !== undefined ? tokens.refreshToken : null,
+      );
+      setToken(tokens.accessToken);
       setPassword("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -227,7 +241,8 @@ export function NyraDashboard() {
   };
 
   const handleLogout = () => {
-    persistToken(null);
+    clearPersistedSessionTokens();
+    setToken(null);
     setOverviewCounts({});
     setModuleData(null);
     setEmail("");
@@ -276,9 +291,6 @@ export function NyraDashboard() {
     active === "overview"
       ? "Manage site modules via the content API. Publish changes separately from editing."
       : MODULE_SUBTITLES[active as ModuleKey];
-
-  /** Hide version chips, refetch/publish/unpublish/copy JSON, and raw JSON for all content module pages. */
-  const isSimplifiedModuleView = active !== "overview";
 
   const jsonPreview = useMemo(() => {
     if (!moduleData) return "";
@@ -590,59 +602,55 @@ export function NyraDashboard() {
             </section>
           ) : (
             <section className="space-y-6 sm:space-y-8">
-              {!isSimplifiedModuleView && (
-                <>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {moduleData && (
-                      <>
-                        <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] font-medium text-[var(--text-heading)]">
-                          v{moduleData.version}
-                        </span>
-                        <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] capitalize text-[var(--foreground-secondary)]">
-                          {moduleData.status ?? "unknown"}
-                        </span>
-                        <span className="text-[12px] text-[var(--foreground-secondary)]">
-                          {moduleSummaryLine(moduleData)}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => void loadModule()}
-                      disabled={moduleLoading}
-                      className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-50">
-                      {moduleLoading ? "Loading…" : "Refetch module"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handlePublish}
-                      disabled={
-                        moduleLoading || !moduleData || moduleData.status === "published"
-                      }
-                      className="neu-btn-primary px-5 py-2.5 text-[12px] disabled:opacity-40">
-                      Publish
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleUnpublish}
-                      disabled={
-                        moduleLoading || !moduleData || moduleData.status !== "published"
-                      }
-                      className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
-                      Unpublish
-                    </button>
-                    <button
-                      type="button"
-                      onClick={copyJson}
-                      disabled={!jsonPreview}
-                      className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
-                      Copy JSON
-                    </button>
-                  </div>
-                </>
-              )}
+              <div className="flex flex-wrap items-center gap-3">
+                  {moduleData && (
+                    <>
+                      <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] font-medium text-[var(--text-heading)]">
+                        v{moduleData.version}
+                      </span>
+                      <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] capitalize text-[var(--foreground-secondary)]">
+                        {moduleData.status ?? "unknown"}
+                      </span>
+                      <span className="text-[12px] text-[var(--foreground-secondary)]">
+                        {moduleSummaryLine(moduleData)}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void loadModule()}
+                    disabled={moduleLoading}
+                    className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-50">
+                    {moduleLoading ? "Loading…" : "Refetch module"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePublish}
+                    disabled={
+                      moduleLoading || !moduleData || moduleData.status === "published"
+                    }
+                    className="neu-btn-primary px-5 py-2.5 text-[12px] disabled:opacity-40">
+                    Publish
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUnpublish}
+                    disabled={
+                      moduleLoading || !moduleData || moduleData.status !== "published"
+                    }
+                    className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
+                    Unpublish
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copyJson}
+                    disabled={!jsonPreview}
+                    className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
+                    Copy JSON
+                  </button>
+              </div>
               {moduleLoading && !moduleData ? (
                 <p className="text-[14px] leading-relaxed text-[var(--foreground-secondary)]">
                   Loading module…
@@ -657,16 +665,14 @@ export function NyraDashboard() {
                     reloadModule={loadModule}
                     onError={setError}
                   />
-                  {!isSimplifiedModuleView && (
-                    <details className="group neu-panel p-5 sm:p-6">
-                      <summary className="cursor-pointer text-[12px] font-semibold text-[var(--foreground-secondary)]">
-                        Raw module JSON
-                      </summary>
-                      <pre className="dashboard-scroll mt-4 max-h-[min(40vh,360px)] overflow-auto border-t border-solid [border-color:var(--divider-soft)] pt-4 text-[11px] leading-relaxed text-[var(--text-heading)] sm:text-[12px]">
-                        {jsonPreview || "{}"}
-                      </pre>
-                    </details>
-                  )}
+                  <details className="group neu-panel p-5 sm:p-6">
+                    <summary className="cursor-pointer text-[12px] font-semibold text-[var(--foreground-secondary)]">
+                      Raw module JSON
+                    </summary>
+                    <pre className="dashboard-scroll mt-4 max-h-[min(40vh,360px)] overflow-auto border-t border-solid [border-color:var(--divider-soft)] pt-4 text-[11px] leading-relaxed text-[var(--text-heading)] sm:text-[12px]">
+                      {jsonPreview || "{}"}
+                    </pre>
+                  </details>
                 </div>
               ) : (
                 <p className="text-[14px] text-[var(--foreground-secondary)]">
