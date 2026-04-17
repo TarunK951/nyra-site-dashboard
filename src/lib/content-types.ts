@@ -33,6 +33,7 @@ export type TestimonialItem = {
   name?: string;
   role?: string;
   tag?: string;
+  mediaUrl?: string;
   visible?: boolean;
 };
 

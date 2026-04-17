@@ -30,6 +30,7 @@ function emptyItem(): TestimonialItem {
     name: "",
     role: "",
     tag: "",
+    mediaUrl: "",
     visible: true,
   };
 }
@@ -50,6 +51,7 @@ export function TestimonialsEditor({
   const [fieldErrors, setFieldErrors] = useState<{
     quote?: string;
     name?: string;
+    mediaUrl?: string;
   }>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -78,16 +80,20 @@ export function TestimonialsEditor({
     if (!editing) return;
     const quote = (editing.quote ?? "").trim();
     const name = (editing.name ?? "").trim();
-    const nextErr: { quote?: string; name?: string } = {};
+    const mediaUrl = (editing.mediaUrl ?? "").trim();
+    const nextErr: { quote?: string; name?: string; mediaUrl?: string } = {};
     if (!quote) nextErr.quote = "Quote is required.";
     if (!name) nextErr.name = "Name is required.";
+    if (editing.type === "video" && !mediaUrl) {
+      nextErr.mediaUrl = "Media URL is required for video type.";
+    }
     if (Object.keys(nextErr).length > 0) {
       setFieldErrors(nextErr);
       setFormError(null);
       return;
     }
     const t = editing.type === "video" ? "video" : "text";
-    const item = { ...editing, type: t, quote, name };
+    const item = { ...editing, type: t, quote, name, mediaUrl };
     setFieldErrors({});
     setBusy(true);
     setFormError(null);
@@ -242,6 +248,20 @@ export function TestimonialsEditor({
                 <option value="video">Video</option>
               </select>
             </Field>
+            {editing.type === "video" && (
+              <Field label="Media URL *" error={fieldErrors.mediaUrl}>
+                <input
+                  className={inputClass(!!fieldErrors.mediaUrl)}
+                  value={editing.mediaUrl ?? ""}
+                  aria-invalid={!!fieldErrors.mediaUrl}
+                  onChange={(e) => {
+                    setEditing({ ...editing, mediaUrl: e.target.value });
+                    setFieldErrors((f) => ({ ...f, mediaUrl: undefined }));
+                  }}
+                  placeholder="e.g. https://cdn.example.com/video.mp4 or YouTube embed link"
+                />
+              </Field>
+            )}
             <Field label="Quote *" error={fieldErrors.quote}>
               <textarea
                 className={`${inputClass(!!fieldErrors.quote)} min-h-[88px]`}
