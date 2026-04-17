@@ -2,7 +2,7 @@
 
 import {
   ConflictError,
-  createTeamMemberAtModule,
+  createCollectionItem,
   deleteCollectionItem,
   updateCollectionItem,
 } from "@/lib/content-api";
@@ -31,7 +31,6 @@ function emptyItem(): TeamMember {
     image: "",
     social: { linkedin: "" },
     visible: true,
-    status: "published",
   };
 }
 
@@ -68,9 +67,13 @@ export function TeamEditor({
     }
     const isUpdate = items.some((x) => x.id === editing.id);
     const item: TeamMember = {
-      ...editing,
+      id: editing.id,
       name,
-      status: editing.status ?? "published",
+      role: editing.role,
+      tagline: editing.tagline,
+      image: editing.image,
+      social: editing.social,
+      visible: editing.visible,
     };
     setFieldErrors({});
     setBusy(true);
@@ -86,7 +89,13 @@ export function TeamEditor({
             v,
             item,
           )
-        : await createTeamMemberAtModule(token, v, item);
+        : await createCollectionItem(
+            token,
+            moduleKey,
+            COLLECTION,
+            v,
+            item,
+          );
       const mod = await ensureModuleAfterMutation(token, moduleKey, next);
       onModuleUpdated(mod);
       closeModal();
