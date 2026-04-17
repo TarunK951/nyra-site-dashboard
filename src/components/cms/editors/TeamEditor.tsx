@@ -2,7 +2,7 @@
 
 import {
   ConflictError,
-  createCollectionItem,
+  createTeamMemberAtModule,
   deleteCollectionItem,
   updateCollectionItem,
 } from "@/lib/content-api";
@@ -86,13 +86,7 @@ export function TeamEditor({
             v,
             item,
           )
-        : await createCollectionItem(
-            token,
-            moduleKey,
-            COLLECTION,
-            v,
-            item,
-          );
+        : await createTeamMemberAtModule(token, v, item);
       const mod = await ensureModuleAfterMutation(token, moduleKey, next);
       onModuleUpdated(mod);
       closeModal();

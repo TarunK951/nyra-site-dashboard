@@ -296,6 +296,27 @@ export async function listCollectionItems(
   return unwrapApiData(body);
 }
 
+/** POST /api/content/team/ — add member (team module uses module root, not …/items/members). */
+export async function createTeamMemberAtModule(
+  token: string,
+  expectedVersion: number,
+  item: unknown,
+): Promise<ContentModulePayload | null> {
+  const { res, body } = await authFetch(
+    `/api/content/${encodeURIComponent("team")}`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ expected_version: expectedVersion, item }),
+    },
+  );
+  throwIfConflict(res, body);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Create failed"));
+  }
+  return unwrapModuleDataLoose(body) ?? unwrapModuleData(body);
+}
+
 export async function createCollectionItem(
   token: string,
   moduleKey: ModuleKey,
