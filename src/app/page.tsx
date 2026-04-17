@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-svh items-center justify-center bg-[var(--background)] text-[var(--foreground-secondary)]">
+        <div className="flex h-svh items-center justify-center bg-[var(--background)] text-[var(--foreground-secondary)] leading-relaxed">
           Loading…
         </div>
       }

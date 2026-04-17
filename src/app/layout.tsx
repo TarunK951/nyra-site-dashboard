@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   metadataBase,
   title: "NyraAI — Website content",
   description:
-    "Admin console for Nyra website modules: blogs, team, FAQ, hospitals, and related content APIs.",
+    "Admin console for Nyra website modules: blogs, team, FAQ, and related content APIs.",
   icons: {
     icon: "/nyraai-logo.png",
     apple: "/nyraai-logo.png",

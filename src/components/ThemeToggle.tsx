@@ -49,7 +49,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="neu-surface-inset flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--foreground)] transition hover:opacity-90"
+      className="neu-surface-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-button)] text-[var(--text-heading)] transition hover:opacity-90 active:shadow-[var(--shadow-inset-press)]"
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       title={isDark ? "Light mode" : "Dark mode"}
     >
