@@ -65,7 +65,8 @@ export function HowItWorksEditor({
       setFormError(null);
       return;
     }
-    const descWords = (editing.description || "").trim().replace(/\s+/g, " ").split(" ").filter((w) => w.length > 0).length;
+    const descriptionText = editing?.description ?? "";
+    const descWords = descriptionText.trim() ? descriptionText.trim().split(/\s+/).length : 0;
     if (descWords > 60) {
       setFieldErrors({ description: "Description cannot exceed 60 words." });
       setFormError(null);
