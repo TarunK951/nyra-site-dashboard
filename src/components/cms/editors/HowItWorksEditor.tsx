@@ -47,7 +47,7 @@ export function HowItWorksEditor({
   const [editing, setEditing] = useState<HowItWorksStep | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HowItWorksStep | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ title?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ title?: string; description?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
 
   const closeModal = useCallback(() => {
@@ -62,6 +62,13 @@ export function HowItWorksEditor({
     const title = (editing.title ?? "").trim();
     if (!title) {
       setFieldErrors({ title: "Title is required." });
+      setFormError(null);
+      return;
+    }
+    const descriptionText = editing?.description ?? "";
+    const descWords = descriptionText.trim() ? descriptionText.trim().split(/\s+/).length : 0;
+    if (descWords > 60) {
+      setFieldErrors({ description: "Description cannot exceed 60 words." });
       setFormError(null);
       return;
     }
@@ -245,13 +252,15 @@ export function HowItWorksEditor({
                 }
               />
             </Field>
-            <Field label="Description">
+            <Field label="Description" error={fieldErrors.description}>
               <textarea
-                className={`${inputClass()} min-h-[88px]`}
+                className={`${inputClass(!!fieldErrors.description)} min-h-[88px]`}
                 value={editing.description ?? ""}
-                onChange={(e) =>
-                  setEditing({ ...editing, description: e.target.value })
-                }
+                aria-invalid={!!fieldErrors.description}
+                onChange={(e) => {
+                  setEditing({ ...editing, description: e.target.value });
+                  setFieldErrors((f) => ({ ...f, description: undefined }));
+                }}
               />
             </Field>
             <Field label="Icon key">
