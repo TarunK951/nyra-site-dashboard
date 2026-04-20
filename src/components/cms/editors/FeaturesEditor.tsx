@@ -7,7 +7,8 @@ import {
   updateCollectionItem,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
-import { RowDeleteButton, RowEditButton } from "@/components/cms/RowActionIcons";
+import { FeatureMarketingPreview } from "@/components/cms/FeatureMarketingPreview";
+import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
 import { featureItems, newId, type FeatureItem } from "@/lib/content-types";
 import {
   Field,
@@ -49,6 +50,7 @@ export function FeaturesEditor({
   const [deleteTarget, setDeleteTarget] = useState<FeatureItem | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<FeatureItem | null>(null);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -144,6 +146,7 @@ export function FeaturesEditor({
       <ToolbarButton
         variant="primary"
         onClick={() => {
+          setPreview(null);
           setEditing(emptyItem());
           setFieldErrors({});
           setFormError(null);
@@ -152,56 +155,52 @@ export function FeaturesEditor({
         disabled={busy}>
         Add feature
       </ToolbarButton>
-      <div className="neu-panel overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-[13px]">
-            <thead>
-              <tr className="text-[11px] font-semibold text-[var(--foreground-secondary)]">
-                <th className="neu-surface-inset-deep px-4 py-3">Title</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Icon</th>
-                <th className="neu-surface-inset-deep px-2 py-3 text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-[var(--foreground-secondary)]">
-                    No features yet.
-                  </td>
-                </tr>
-              ) : (
-                items.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--accent-fill)]">
-                    <td className="px-4 py-3 font-medium">{row.title ?? row.id}</td>
-                    <td className="px-2 py-3 font-mono text-[12px] text-[var(--foreground-secondary)]">
-                      {row.icon ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-3 text-right">
-                      <RowEditButton
-                        onClick={() => {
-                          setEditing({ ...row });
-                          setFieldErrors({});
-                          setFormError(null);
-                          setModalOpen(true);
-                        }}
-                        disabled={busy}
-                        ariaLabel={`Edit feature ${row.title ?? row.id}`}
-                      />
-                      <RowDeleteButton
-                        onClick={() => setDeleteTarget(row)}
-                        disabled={busy}
-                        ariaLabel={`Delete feature ${row.title ?? row.id}`}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {items.length === 0 ? (
+        <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-8 text-center text-[14px] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)]">
+          No features yet.
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((row) => (
+            <ModuleItemCard
+              key={row.id}
+              title={row.title ?? row.id}
+              onView={() => setPreview(row)}
+              onPrimaryClick={() => setPreview(row)}
+              onEdit={() => {
+                setPreview(null);
+                setEditing({ ...row });
+                setFieldErrors({});
+                setFormError(null);
+                setModalOpen(true);
+              }}
+              onDelete={() => setDeleteTarget(row)}
+              busy={busy}
+              viewAriaLabel={`Preview feature ${row.title ?? row.id}`}
+              editAriaLabel={`Edit feature ${row.title ?? row.id}`}
+              deleteAriaLabel={`Delete feature ${row.title ?? row.id}`}>
+              <p className="text-[11px] font-mono text-[var(--text-muted)]">
+                {(row.icon ?? "sparkles").trim()}
+                {typeof row.colSpan === "number" && row.colSpan >= 2
+                  ? " · wide layout"
+                  : ""}
+              </p>
+              <p className="mt-2 line-clamp-3">
+                {row.description?.trim() || "—"}
+              </p>
+            </ModuleItemCard>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={!!preview}
+        title="Feature preview"
+        size="xl"
+        layout="plain"
+        onClose={() => setPreview(null)}>
+        {preview ? <FeatureMarketingPreview item={preview} /> : null}
+      </Modal>
 
       <Modal
         open={modalOpen}

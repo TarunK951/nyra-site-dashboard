@@ -10,6 +10,7 @@ import { HowItWorksEditor } from "@/components/cms/editors/HowItWorksEditor";
 import { SalesTeamEditor } from "@/components/cms/editors/SalesTeamEditor";
 import { TeamEditor } from "@/components/cms/editors/TeamEditor";
 import { TestimonialsEditor } from "@/components/cms/editors/TestimonialsEditor";
+import { ProvenImpactEditor } from "@/components/cms/editors/ProvenImpactEditor";
 
 type Props = {
   moduleKey: ModuleKey;
@@ -52,6 +53,8 @@ export function ModuleWorkspace({
       return <HowItWorksEditor {...common} />;
     case "sales_team":
       return <SalesTeamEditor {...common} />;
+    case "proven_impact":
+      return <ProvenImpactEditor {...common} />;
     default: {
       const _exhaustive: never = moduleKey;
       return _exhaustive;
