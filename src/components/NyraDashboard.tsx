@@ -42,6 +42,7 @@ const MODULE_ICONS: Record<ModuleKey, string> = {
   features: "✦",
   how_it_works: "⚙",
   sales_team: "☎",
+  proven_impact: "▤",
 };
 
 const nav = [

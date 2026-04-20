@@ -7,7 +7,7 @@ import {
   updateCollectionItem,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
-import { RowDeleteButton, RowEditButton } from "@/components/cms/RowActionIcons";
+import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
 import { faqItems, newId, type FaqItem } from "@/lib/content-types";
 import {
   Field,
@@ -151,52 +151,31 @@ export function FaqEditor({
         disabled={busy}>
         Add FAQ
       </ToolbarButton>
-      <div className="neu-panel overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left text-[13px]">
-            <thead>
-              <tr className="text-[11px] font-semibold text-[var(--foreground-secondary)]">
-                <th className="neu-surface-inset-deep px-4 py-3">Question</th>
-                <th className="neu-surface-inset-deep px-2 py-3 text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="px-4 py-8 text-center text-[var(--foreground-secondary)]">
-                    No FAQ items yet.
-                  </td>
-                </tr>
-              ) : (
-                items.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--accent-fill)]">
-                    <td className="max-w-xl px-4 py-3">{row.question ?? row.id}</td>
-                    <td className="whitespace-nowrap px-2 py-3 text-right">
-                      <RowEditButton
-                        onClick={() => {
-                          setEditing({ ...row });
-                          setFieldErrors({});
-                          setFormError(null);
-                          setModalOpen(true);
-                        }}
-                        disabled={busy}
-                        ariaLabel={`Edit FAQ ${row.question ?? row.id}`}
-                      />
-                      <RowDeleteButton
-                        onClick={() => setDeleteTarget(row)}
-                        disabled={busy}
-                        ariaLabel={`Delete FAQ ${row.question ?? row.id}`}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {items.length === 0 ? (
+        <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-8 text-center text-[14px] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)]">
+          No FAQ items yet.
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((row) => (
+            <ModuleItemCard
+              key={row.id}
+              title={row.question ?? row.id}
+              onEdit={() => {
+                setEditing({ ...row });
+                setFieldErrors({});
+                setFormError(null);
+                setModalOpen(true);
+              }}
+              onDelete={() => setDeleteTarget(row)}
+              busy={busy}
+              editAriaLabel={`Edit FAQ ${row.question ?? row.id}`}
+              deleteAriaLabel={`Delete FAQ ${row.question ?? row.id}`}>
+              <p className="line-clamp-4">{row.answer?.trim() || "—"}</p>
+            </ModuleItemCard>
+          ))}
+        </div>
+      )}
 
       <Modal
         open={modalOpen}
