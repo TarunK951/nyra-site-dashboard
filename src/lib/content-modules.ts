@@ -7,6 +7,7 @@ export const MODULE_KEYS = [
   "features",
   "how_it_works",
   "sales_team",
+  "proven_impact",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -19,6 +20,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   features: "Features",
   how_it_works: "How it works",
   sales_team: "Sales team",
+  proven_impact: "Proven Impact",
 };
 
 export const OVERVIEW_MODULE_LABELS: Record<ModuleKey, string> = MODULE_LABELS;
@@ -32,6 +34,7 @@ export const MODULE_SUBTITLES: Record<ModuleKey, string> = {
   features: "Manage product features and highlights.",
   how_it_works: "Manage how-it-works steps.",
   sales_team: "Manage sales representatives and regions.",
+  proven_impact: "Impact statistics, adoption by industry, and testimonial.",
 };
 
 /** Primary collection id per module (for `/items/:collection` routes). */
@@ -44,6 +47,7 @@ export const COLLECTION_BY_MODULE: Record<ModuleKey, string | readonly string[]>
     features: "items",
     how_it_works: "steps",
     sales_team: "reps",
+    proven_impact: ["stats", "chartData"],
   };
 
 export type NavId = "overview" | ModuleKey;

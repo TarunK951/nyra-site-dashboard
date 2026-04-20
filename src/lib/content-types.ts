@@ -86,6 +86,30 @@ export type SalesRep = {
   visible?: boolean;
 };
 
+export type ImpactStat = {
+  id: string;
+  value: string;
+  label: string;
+};
+
+export type ImpactChartItem = {
+  id: string;
+  label: string;
+  percentage: number;
+};
+
+export type ImpactQuote = {
+  text: string;
+  author: string;
+  role: string;
+};
+
+export type ProvenImpactData = {
+  stats: ImpactStat[];
+  chartData: ImpactChartItem[];
+  quote: ImpactQuote;
+};
+
 function asArray<T>(v: unknown): T[] {
   if (!Array.isArray(v)) return [];
   return v as T[];
@@ -133,6 +157,15 @@ export function salesReps(mod: ContentModulePayload): SalesRep[] {
   return getCollectionItems<SalesRep>(mod, "reps");
 }
 
+export function getProvenImpactData(mod: ContentModulePayload): ProvenImpactData {
+  const o = getContentRecord(mod);
+  return {
+    stats: asArray<ImpactStat>(o.stats),
+    chartData: asArray<ImpactChartItem>(o.chartData),
+    quote: (o.quote as ImpactQuote) || { text: "", author: "", role: "" },
+  };
+}
+
 /** Count of primary content entries per module (posts, list entries, etc.). */
 export function getModuleItemCount(
   mod: ContentModulePayload,
@@ -153,6 +186,19 @@ export function getModuleItemCount(
       return howItWorksSteps(mod).length;
     case "sales_team":
       return salesReps(mod).length;
+    case "proven_impact": {
+      const pi = getProvenImpactData(mod);
+      const q = pi.quote;
+      const hasQuote =
+        Boolean((q.text ?? "").trim()) ||
+        Boolean((q.author ?? "").trim()) ||
+        Boolean((q.role ?? "").trim());
+      return (
+        pi.stats.length +
+        pi.chartData.length +
+        (hasQuote ? 1 : 0)
+      );
+    }
     default:
       return 0;
   }
@@ -173,6 +219,8 @@ export function primaryCollectionForModule(key: ModuleKey): string {
       return "steps";
     case "sales_team":
       return "reps";
+    case "proven_impact":
+      return "stats";
     default:
       return "items";
   }
