@@ -139,8 +139,24 @@ export function ProvenImpactEditor({
     token,
   ]);
 
-  const cardClass =
-    "neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-4 shadow-[var(--shadow-button)]";
+  const panelClass =
+    "neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] shadow-[var(--shadow-button)]";
+  const innerTileClass =
+    "rounded-xl border border-solid [border-color:var(--divider-soft)] bg-[var(--accent-fill)] px-3 py-3 sm:px-4 sm:py-3.5";
+
+  const showStats = data.stats.length > 0;
+  const showChart = data.chartData.length > 0;
+  const showQuote =
+    !!(data.quote.text ?? "").trim() ||
+    !!(data.quote.author ?? "").trim() ||
+    !!(data.quote.role ?? "").trim();
+  const showPreview = showStats || showChart || showQuote;
+  const previewColumnCount =
+    Number(showStats) + Number(showChart) + Number(showQuote);
+
+  const sectionLabelClass =
+    "text-[11px] font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]";
+  const columnClass = "min-w-0 space-y-3";
 
   return (
     <div className="space-y-6">
@@ -151,13 +167,9 @@ export function ProvenImpactEditor({
       </div>
 
       <div className="flex justify-start">
-        <div className="w-full max-w-lg space-y-4">
-          {data.stats.length === 0 &&
-          data.chartData.length === 0 &&
-          !(data.quote.text ?? "").trim() &&
-          !(data.quote.author ?? "").trim() &&
-          !(data.quote.role ?? "").trim() ? (
-            <div className={cardClass}>
+        <div className="w-full max-w-5xl space-y-4">
+          {!showPreview ? (
+            <div className={`${panelClass} p-4`}>
               <p className="text-[13px] leading-relaxed text-[var(--foreground-secondary)]">
                 No impact content loaded yet. Add content with the button
                 above; it is saved to the content API with version checking.
@@ -165,68 +177,75 @@ export function ProvenImpactEditor({
             </div>
           ) : null}
 
-          {data.stats.length > 0 ? (
-            <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]">
-                Statistics
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {data.stats.map((stat) => (
-                  <div key={stat.id} className={cardClass}>
-                    <p className="text-lg font-semibold tabular-nums text-[var(--text-heading)]">
-                      {(stat.value ?? "").trim() || "—"}
-                    </p>
-                    <p className="mt-1 text-[12px] text-[var(--foreground-secondary)]">
-                      {(stat.label ?? "").trim() || "—"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          {showPreview ? (
+            <div
+              className={`${panelClass} box-border p-5 sm:p-6 lg:px-8 lg:py-7`}>
+              <div
+                className={`grid min-w-0 grid-cols-1 gap-8 lg:items-start lg:gap-x-8 lg:gap-y-0 xl:gap-x-10 ${
+                  previewColumnCount === 3
+                    ? "lg:grid-cols-3"
+                    : previewColumnCount === 2
+                      ? "lg:grid-cols-2"
+                      : "lg:grid-cols-1"
+                }`}>
+                {showStats ? (
+                  <section className={columnClass}>
+                    <p className={sectionLabelClass}>Statistics</p>
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                      {data.stats.map((stat) => (
+                        <div key={stat.id} className={innerTileClass}>
+                          <p className="text-base font-semibold tabular-nums text-[var(--text-heading)] sm:text-lg">
+                            {(stat.value ?? "").trim() || "—"}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-snug text-[var(--foreground-secondary)] sm:text-[12px]">
+                            {(stat.label ?? "").trim() || "—"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
-          {data.chartData.length > 0 ? (
-            <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]">
-                Adoption by industry
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {data.chartData.map((row) => (
-                  <div key={row.id} className={cardClass}>
-                    <p className="text-[13px] font-medium text-[var(--text-heading)]">
-                      {(row.label ?? "").trim() || "—"}
-                    </p>
-                    <p className="mt-2 text-lg font-semibold tabular-nums text-[var(--text-heading)]">
-                      {typeof row.percentage === "number" &&
-                      row.percentage > 0
-                        ? `${row.percentage}%`
-                        : "—"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+                {showChart ? (
+                  <section className={columnClass}>
+                    <p className={sectionLabelClass}>Adoption by industry</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                      {data.chartData.map((row) => (
+                        <div key={row.id} className={innerTileClass}>
+                          <p className="text-[12px] font-medium text-[var(--text-heading)] sm:text-[13px]">
+                            {(row.label ?? "").trim() || "—"}
+                          </p>
+                          <p className="mt-1.5 text-base font-semibold tabular-nums text-[var(--text-heading)] sm:text-lg">
+                            {typeof row.percentage === "number" &&
+                            row.percentage > 0
+                              ? `${row.percentage}%`
+                              : "—"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
-          {(data.quote.text ?? "").trim() ||
-          (data.quote.author ?? "").trim() ||
-          (data.quote.role ?? "").trim() ? (
-            <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]">
-                Testimonial
-              </p>
-              <div className={cardClass}>
-                <p className="text-[14px] italic leading-relaxed text-[var(--text-heading)]">
-                  {(data.quote.text ?? "").trim()
-                    ? `“${data.quote.text.trim()}”`
-                    : "—"}
-                </p>
-                <p className="mt-3 text-[12px] text-[var(--foreground-secondary)]">
-                  {(data.quote.author ?? "").trim() || "—"}
-                  {(data.quote.role ?? "").trim()
-                    ? ` · ${(data.quote.role ?? "").trim()}`
-                    : ""}
-                </p>
+                {showQuote ? (
+                  <section className={columnClass}>
+                    <p className={sectionLabelClass}>Testimonial</p>
+                    <div
+                      className={`${innerTileClass} flex min-h-[7.5rem] flex-col justify-center py-4 min-w-0`}>
+                      <p className="break-words text-[13px] italic leading-relaxed text-[var(--text-heading)] sm:text-[14px]">
+                        {(data.quote.text ?? "").trim()
+                          ? `“${data.quote.text.trim()}”`
+                          : "—"}
+                      </p>
+                      <p className="mt-3 text-[12px] text-[var(--foreground-secondary)]">
+                        {(data.quote.author ?? "").trim() || "—"}
+                        {(data.quote.role ?? "").trim()
+                          ? ` · ${(data.quote.role ?? "").trim()}`
+                          : ""}
+                      </p>
+                    </div>
+                  </section>
+                ) : null}
               </div>
             </div>
           ) : null}

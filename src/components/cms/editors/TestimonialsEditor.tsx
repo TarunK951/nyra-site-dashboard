@@ -7,7 +7,8 @@ import {
   updateCollectionItem,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
-import { RowDeleteButton, RowEditButton } from "@/components/cms/RowActionIcons";
+import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
+import { TestimonialMarketingPreview } from "@/components/cms/TestimonialMarketingPreview";
 import { newId, testimonialItems, type TestimonialItem } from "@/lib/content-types";
 import {
   Field,
@@ -54,8 +55,10 @@ export function TestimonialsEditor({
     mediaUrl?: string;
   }>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<TestimonialItem | null>(null);
 
   const openCreate = () => {
+    setPreview(null);
     setEditing(emptyItem());
     setFieldErrors({});
     setFormError(null);
@@ -63,6 +66,7 @@ export function TestimonialsEditor({
   };
 
   const openEdit = (it: TestimonialItem) => {
+    setPreview(null);
     setEditing({ ...it });
     setFieldErrors({});
     setFormError(null);
@@ -177,55 +181,46 @@ export function TestimonialsEditor({
           Add testimonial
         </ToolbarButton>
       </div>
-      <div className="neu-panel overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left text-[13px]">
-            <thead>
-              <tr className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
-                <th className="neu-surface-inset-deep px-4 py-3">Name</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Quote</th>
-                <th className="neu-surface-inset-deep px-2 py-3 text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-4 py-8 text-center text-[var(--foreground-secondary)]">
-                    No testimonials yet.
-                  </td>
-                </tr>
-              ) : (
-                items.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--accent-fill)]">
-                    <td className="px-4 py-3 font-medium text-[var(--foreground)]">
-                      {row.name ?? row.id}
-                    </td>
-                    <td className="max-w-md truncate px-2 py-3 text-[var(--foreground-secondary)]">
-                      {row.quote ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-3 text-right">
-                      <RowEditButton
-                        onClick={() => openEdit(row)}
-                        disabled={busy}
-                        ariaLabel={`Edit testimonial ${row.name ?? row.id}`}
-                      />
-                      <RowDeleteButton
-                        onClick={() => setDeleteTarget(row)}
-                        disabled={busy}
-                        ariaLabel={`Delete testimonial ${row.name ?? row.id}`}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {items.length === 0 ? (
+        <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-8 text-center text-[14px] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)]">
+          No testimonials yet.
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((row) => (
+            <ModuleItemCard
+              key={row.id}
+              label={row.type === "video" ? "Video" : "Text"}
+              title={row.name ?? row.id}
+              onView={() => setPreview(row)}
+              onPrimaryClick={() => setPreview(row)}
+              onEdit={() => openEdit(row)}
+              onDelete={() => setDeleteTarget(row)}
+              busy={busy}
+              viewAriaLabel={`Preview testimonial from ${row.name ?? row.id}`}
+              editAriaLabel={`Edit testimonial ${row.name ?? row.id}`}
+              deleteAriaLabel={`Delete testimonial ${row.name ?? row.id}`}>
+              <p className="line-clamp-3 italic text-[var(--foreground-secondary)]">
+                {row.quote?.trim() ? `“${row.quote.trim()}”` : "—"}
+              </p>
+              {(row.role ?? "").trim() ? (
+                <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+                  {(row.role ?? "").trim()}
+                </p>
+              ) : null}
+            </ModuleItemCard>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={!!preview}
+        title="Testimonial preview"
+        size="xl"
+        layout="plain"
+        onClose={() => setPreview(null)}>
+        {preview ? <TestimonialMarketingPreview item={preview} /> : null}
+      </Modal>
 
       <Modal
         open={modalOpen}

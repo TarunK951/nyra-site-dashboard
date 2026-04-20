@@ -7,7 +7,8 @@ import {
   updateCollectionItem,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
-import { RowDeleteButton, RowEditButton } from "@/components/cms/RowActionIcons";
+import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
+import { TeamMemberCardPreview } from "@/components/cms/TeamMemberCardPreview";
 import { newId, teamMembers, type TeamMember } from "@/lib/content-types";
 import {
   Field,
@@ -49,6 +50,7 @@ export function TeamEditor({
   const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<TeamMember | null>(null);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -153,6 +155,7 @@ export function TeamEditor({
       <ToolbarButton
         variant="primary"
         onClick={() => {
+          setPreview(null);
           setEditing(emptyItem());
           setFieldErrors({});
           setFormError(null);
@@ -161,56 +164,49 @@ export function TeamEditor({
         disabled={busy}>
         Add member
       </ToolbarButton>
-      <div className="neu-panel overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-[13px]">
-            <thead>
-              <tr className="text-[11px] font-semibold uppercase text-[var(--foreground-secondary)]">
-                <th className="neu-surface-inset-deep px-4 py-3">Name</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Role</th>
-                <th className="neu-surface-inset-deep px-2 py-3 text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-[var(--foreground-secondary)]">
-                    No team members yet.
-                  </td>
-                </tr>
-              ) : (
-                items.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--accent-fill)]">
-                    <td className="px-4 py-3 font-medium">{row.name ?? row.id}</td>
-                    <td className="px-2 py-3 text-[var(--foreground-secondary)]">
-                      {row.role ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-3 text-right">
-                      <RowEditButton
-                        onClick={() => {
-                          setEditing({ ...row });
-                          setFieldErrors({});
-                          setFormError(null);
-                          setModalOpen(true);
-                        }}
-                        disabled={busy}
-                        ariaLabel={`Edit ${row.name ?? row.id}`}
-                      />
-                      <RowDeleteButton
-                        onClick={() => setDeleteTarget(row)}
-                        disabled={busy}
-                        ariaLabel={`Delete ${row.name ?? row.id}`}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {items.length === 0 ? (
+        <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-8 text-center text-[14px] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)]">
+          No team members yet.
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((row) => (
+            <ModuleItemCard
+              key={row.id}
+              title={row.name ?? row.id}
+              onView={() => setPreview(row)}
+              onPrimaryClick={() => setPreview(row)}
+              onEdit={() => {
+                setPreview(null);
+                setEditing({ ...row });
+                setFieldErrors({});
+                setFormError(null);
+                setModalOpen(true);
+              }}
+              onDelete={() => setDeleteTarget(row)}
+              busy={busy}
+              viewAriaLabel={`Preview team member ${row.name ?? row.id}`}
+              editAriaLabel={`Edit ${row.name ?? row.id}`}
+              deleteAriaLabel={`Delete ${row.name ?? row.id}`}>
+              <p className="line-clamp-2">{row.role?.trim() || "—"}</p>
+              {(row.tagline ?? "").trim() ? (
+                <p className="mt-2 line-clamp-2 text-[12px] text-[var(--text-muted)]">
+                  {(row.tagline ?? "").trim()}
+                </p>
+              ) : null}
+            </ModuleItemCard>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={!!preview}
+        title="Team member preview"
+        size="2xl"
+        layout="plain"
+        onClose={() => setPreview(null)}>
+        {preview ? <TeamMemberCardPreview member={preview} /> : null}
+      </Modal>
 
       <Modal
         open={modalOpen}

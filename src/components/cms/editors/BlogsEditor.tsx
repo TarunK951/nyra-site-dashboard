@@ -8,10 +8,8 @@ import {
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
 import { blogsPosts, newId, type BlogPost, type BlogSection } from "@/lib/content-types";
-import {
-  RowDeleteButton,
-  RowEditButton,
-} from "@/components/cms/RowActionIcons";
+import { BlogPostMarketingPreview } from "@/components/cms/BlogPostMarketingPreview";
+import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
 import {
   ConfirmDialog,
   Field,
@@ -157,8 +155,10 @@ export function BlogsEditor({
     Partial<Record<BlogFieldKey, string>>
   >({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [blogPreview, setBlogPreview] = useState<BlogPost | null>(null);
 
   const openCreate = () => {
+    setBlogPreview(null);
     setEditingSnapshot(null);
     setForm(emptyForm());
     setFieldErrors({});
@@ -167,6 +167,7 @@ export function BlogsEditor({
   };
 
   const openEdit = (post: BlogPost) => {
+    setBlogPreview(null);
     setEditingSnapshot(post);
     setForm(postToForm(post));
     setFieldErrors({});
@@ -348,82 +349,54 @@ export function BlogsEditor({
         </ToolbarButton>
       </div>
 
-      <div className="neu-panel overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-[13px] leading-[1.65]">
-            <thead>
-              <tr className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
-                <th className="neu-surface-inset-deep px-4 py-4 first:rounded-tl-[var(--radius-panel)]">
-                  Title
-                </th>
-                <th className="neu-surface-inset-deep px-3 py-4">Slug</th>
-                <th className="neu-surface-inset-deep px-3 py-4">Category</th>
-                <th className="neu-surface-inset-deep px-3 py-4">Published</th>
-                <th className="neu-surface-inset-deep px-3 py-4">Author</th>
-                <th className="neu-surface-inset-deep px-4 py-4">Excerpt</th>
-                <th className="neu-surface-inset-deep px-3 py-4 text-right last:rounded-tr-[var(--radius-panel)]">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-5 py-12 text-center text-[15px] leading-[1.65] text-[var(--foreground-secondary)] sm:py-14">
-                    No published posts yet. Add a post (status will be saved as
-                    published) — it will show here after the blogs module is
-                    published on the site.
-                  </td>
-                </tr>
-              ) : (
-                tableRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="transition hover:bg-[var(--accent-fill)]">
-                    <td className="px-4 py-4 font-medium text-[var(--text-heading)]">
-                      {row.title}
-                    </td>
-                    <td className="max-w-[140px] truncate px-3 py-4 font-mono text-[12px] text-[var(--text-heading)]">
-                      {row.slug}
-                    </td>
-                    <td className="px-3 py-4 text-[var(--text-heading)]">
-                      {row.category ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-[12px] text-[var(--foreground-secondary)]">
-                      {row.publishedAt
-                        ? new Date(row.publishedAt).toLocaleString(undefined, {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-4 text-[var(--text-heading)]">
-                      {row.author?.name ?? "—"}
-                    </td>
-                    <td className="max-w-[280px] truncate px-4 py-4 text-[12px] text-[var(--foreground-secondary)]">
-                      {row.excerpt ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-right">
-                      <RowEditButton
-                        onClick={() => openEdit(row)}
-                        disabled={busy}
-                        ariaLabel={`Edit ${row.title ?? "post"}`}
-                      />
-                      <RowDeleteButton
-                        onClick={() => setDeleteTarget(row)}
-                        disabled={busy}
-                        ariaLabel={`Delete ${row.title ?? "post"}`}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {tableRows.length === 0 ? (
+        <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] px-5 py-12 text-center text-[15px] leading-[1.65] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)] sm:py-14">
+          No published posts yet. Add a post (status will be saved as published)
+          — it will show here after the blogs module is published on the site.
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+          {tableRows.map((row) => (
+            <ModuleItemCard
+              key={row.id}
+              label={(row.category ?? "").trim() || "Uncategorized"}
+              title={row.title}
+              onView={() => setBlogPreview(row)}
+              onPrimaryClick={() => setBlogPreview(row)}
+              onEdit={() => openEdit(row)}
+              onDelete={() => setDeleteTarget(row)}
+              busy={busy}
+              viewAriaLabel={`Preview blog post ${row.title}`}
+              editAriaLabel={`Edit ${row.title ?? "post"}`}
+              deleteAriaLabel={`Delete ${row.title ?? "post"}`}>
+              <p className="font-mono text-[11px] text-[var(--text-muted)]">
+                /{row.slug}
+              </p>
+              <p className="mt-2 line-clamp-3 text-[13px]">
+                {row.excerpt?.trim() || "—"}
+              </p>
+              <p className="mt-3 text-[12px] text-[var(--foreground-secondary)]">
+                {row.author?.name?.trim() || "—"}
+                {row.publishedAt
+                  ? ` · ${new Date(row.publishedAt).toLocaleString(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}`
+                  : ""}
+              </p>
+            </ModuleItemCard>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={!!blogPreview}
+        title="Blog post preview"
+        size="xl"
+        layout="plain"
+        onClose={() => setBlogPreview(null)}>
+        {blogPreview ? <BlogPostMarketingPreview post={blogPreview} /> : null}
+      </Modal>
 
       <Modal
         open={modalOpen}

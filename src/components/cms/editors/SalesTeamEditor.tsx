@@ -7,7 +7,8 @@ import {
   updateCollectionItem,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
-import { RowDeleteButton, RowEditButton } from "@/components/cms/RowActionIcons";
+import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
+import { SalesRepCardPreview } from "@/components/cms/SalesRepCardPreview";
 import { newId, salesReps, type SalesRep } from "@/lib/content-types";
 import {
   Field,
@@ -63,6 +64,7 @@ export function SalesTeamEditor({
   const [deleteTarget, setDeleteTarget] = useState<SalesRep | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<SalesRep | null>(null);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -73,6 +75,7 @@ export function SalesTeamEditor({
   }, []);
 
   const openEdit = (row: SalesRep) => {
+    setPreview(null);
     setEditing({ ...row });
     setRegionsStr(regionsToString(row.regions));
     setFieldErrors({});
@@ -81,6 +84,7 @@ export function SalesTeamEditor({
   };
 
   const openCreate = () => {
+    setPreview(null);
     const e = emptyItem();
     setEditing(e);
     setRegionsStr("");
@@ -182,51 +186,43 @@ export function SalesTeamEditor({
       <ToolbarButton variant="primary" onClick={openCreate} disabled={busy}>
         Add sales rep
       </ToolbarButton>
-      <div className="neu-panel overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-[13px]">
-            <thead>
-              <tr className="text-[11px] font-semibold text-[var(--foreground-secondary)]">
-                <th className="neu-surface-inset-deep px-4 py-3">Name</th>
-                <th className="neu-surface-inset-deep px-2 py-3">Designation</th>
-                <th className="neu-surface-inset-deep px-2 py-3 text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-[var(--foreground-secondary)]">
-                    No reps yet.
-                  </td>
-                </tr>
-              ) : (
-                items.map((row) => (
-                  <tr key={row.id} className="hover:bg-[var(--accent-fill)]">
-                    <td className="px-4 py-3 font-medium">{row.name ?? row.id}</td>
-                    <td className="px-2 py-3 text-[var(--foreground-secondary)]">
-                      {row.designation ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-3 text-right">
-                      <RowEditButton
-                        onClick={() => openEdit(row)}
-                        disabled={busy}
-                        ariaLabel={`Edit ${row.name ?? row.id}`}
-                      />
-                      <RowDeleteButton
-                        onClick={() => setDeleteTarget(row)}
-                        disabled={busy}
-                        ariaLabel={`Delete ${row.name ?? row.id}`}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {items.length === 0 ? (
+        <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-8 text-center text-[14px] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)]">
+          No reps yet.
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((row) => (
+            <ModuleItemCard
+              key={row.id}
+              title={row.name ?? row.id}
+              onView={() => setPreview(row)}
+              onPrimaryClick={() => setPreview(row)}
+              onEdit={() => openEdit(row)}
+              onDelete={() => setDeleteTarget(row)}
+              busy={busy}
+              viewAriaLabel={`Preview sales rep ${row.name ?? row.id}`}
+              editAriaLabel={`Edit ${row.name ?? row.id}`}
+              deleteAriaLabel={`Delete ${row.name ?? row.id}`}>
+              <p className="line-clamp-2">{row.designation?.trim() || "—"}</p>
+              {(row.regions?.length ?? 0) > 0 ? (
+                <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+                  Regions: {regionsToString(row.regions)}
+                </p>
+              ) : null}
+            </ModuleItemCard>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={!!preview}
+        title="Sales rep preview"
+        size="xl"
+        layout="plain"
+        onClose={() => setPreview(null)}>
+        {preview ? <SalesRepCardPreview rep={preview} /> : null}
+      </Modal>
 
       <Modal
         open={modalOpen}
