@@ -1,6 +1,7 @@
 "use client";
 
 import type { TestimonialItem } from "@/lib/content-types";
+import { TestimonialVideoPlayer } from "@/components/cms/TestimonialVideoPlayer";
 
 function pillLabel(tag: string, role: string, fallback: string): string {
   const t = tag.trim().toUpperCase().replace(/\s+/g, "");
@@ -25,22 +26,34 @@ function IconPlay({ className }: { className?: string }) {
   );
 }
 
-/** Reference: full-bleed black card, quote + play + pill */
+/** Reference: full-bleed black card; playable video when a URL is set */
 function TestimonialVideoCard({ item }: { item: TestimonialItem }) {
   const quote = (item.quote ?? "").trim() || "—";
   const badge = pillLabel(item.tag ?? "", item.role ?? "", "DEV");
+  const media = (item.mediaUrl ?? "").trim();
+  const hasMedia = Boolean(media);
 
   return (
-    <div className="mx-auto flex h-[min(72vw,380px)] w-full max-w-[420px] flex-col overflow-hidden rounded-[24px] bg-black sm:h-[400px] sm:max-w-[440px]">
-      <div className="flex min-h-0 flex-1 flex-col justify-end p-7 pb-6 sm:p-8 sm:pb-7">
+    <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden rounded-[24px] bg-black sm:max-w-[440px]">
+      <div className="shrink-0 border-b border-white/10 p-4 sm:p-5">
+        {hasMedia ? (
+          <TestimonialVideoPlayer
+            src={media}
+            maxHeightClass="max-h-[min(52vw,280px)] sm:max-h-[300px]"
+            className="rounded-[16px]"
+          />
+        ) : (
+          <div className="flex aspect-video w-full items-center justify-center rounded-[16px] bg-white/5">
+            <IconPlay />
+          </div>
+        )}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col justify-end p-7 pb-5 sm:p-8 sm:pb-6">
         <p className="text-[15px] font-bold leading-snug tracking-tight text-white sm:text-[16px]">
           {quote}
         </p>
       </div>
-      <div className="flex shrink-0 items-center justify-between gap-4 px-7 pb-7 pt-2 sm:px-8 sm:pb-8">
-        <span className="text-white">
-          <IconPlay />
-        </span>
+      <div className="flex shrink-0 items-center justify-end gap-4 px-7 pb-7 pt-0 sm:px-8 sm:pb-8">
         <span className="rounded-full bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-black">
           {badge}
         </span>
