@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow HMR / dev assets when opening the app via LAN IP (not localhost).
+  allowedDevOrigins: ["172.16.1.98"],
   images: {
     remotePatterns: [
       {
