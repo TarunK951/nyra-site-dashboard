@@ -49,17 +49,13 @@ export function TeamMemberCardPreview({ member }: { member: TeamMember }) {
   );
   const rawImage = typeof member.image === "string" ? member.image : "";
   const imageUrl = useMemo(() => resolveCmsMediaUrl(rawImage), [rawImage]);
-  /** Separate flags so front/back `<img>` each get a real load attempt (decoupled `onError`). */
   const [frontImageError, setFrontImageError] = useState(false);
-  const [backImageError, setBackImageError] = useState(false);
 
   useEffect(() => {
     setFrontImageError(false);
-    setBackImageError(false);
   }, [imageUrl]);
 
   const showFrontImage = Boolean(imageUrl) && !frontImageError;
-  const showBackImage = Boolean(imageUrl) && !backImageError;
   const hashtag = roleHashtag(role);
   const badge = backBadge(role);
   const roleUpper = role.toUpperCase() || "—";
@@ -127,28 +123,7 @@ export function TeamMemberCardPreview({ member }: { member: TeamMember }) {
           </span>
         </header>
 
-        <div className="relative mt-4 h-[5.25rem] w-full shrink-0 overflow-hidden rounded-xl bg-zinc-900/80 sm:h-24">
-          {showBackImage ? (
-            <img
-              key={`back-${imageUrl}`}
-              src={imageUrl!}
-              alt=""
-              className="h-full w-full object-cover object-top"
-              loading="eager"
-              decoding="async"
-              referrerPolicy="no-referrer"
-              onError={() => setBackImageError(true)}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center px-4 text-center text-[11px] font-medium text-zinc-500">
-              {imageUrl && backImageError
-                ? "Portrait could not be loaded"
-                : "No portrait URL"}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 shrink-0">
+        <div className="mt-6 shrink-0">
           <h3
             className="text-[1.75rem] font-bold lowercase leading-[1.05] tracking-tight sm:text-[2rem]"
             style={{ color: "#ffffff" }}>
