@@ -26,6 +26,8 @@
   --trend-down: #dc2626;
   --sidebar-expanded: 17.5rem;
   --sidebar-collapsed: 4.25rem;
+  /* Sidebar chrome + main header share this height so their bottom borders align */
+  --shell-header-min-h: 5rem;
 
   /* Core elevations (spec) */
   --shadow-elevated:
