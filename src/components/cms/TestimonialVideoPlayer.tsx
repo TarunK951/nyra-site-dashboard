@@ -44,6 +44,8 @@ function vimeoEmbedUrl(raw: string): string | null {
 export type TestimonialVideoPlayerProps = {
   /** Raw URL from CMS, blob URL for local preview, or empty */
   src: string;
+  /** Optional poster image URL for native &lt;video&gt; (ignored for embeds). */
+  poster?: string;
   className?: string;
   /** Max height for embedded players */
   maxHeightClass?: string;
@@ -54,6 +56,7 @@ export type TestimonialVideoPlayerProps = {
  */
 export function TestimonialVideoPlayer({
   src,
+  poster,
   className = "",
   maxHeightClass = "max-h-[min(56vw,320px)]",
 }: TestimonialVideoPlayerProps) {
@@ -65,6 +68,12 @@ export function TestimonialVideoPlayer({
     if (/^blob:/i.test(trimmed)) return trimmed;
     return resolveCmsMediaUrl(trimmed);
   }, [trimmed]);
+
+  const resolvedPoster = useMemo(() => {
+    const p = (poster ?? "").trim();
+    if (!p || /^blob:/i.test(p)) return undefined;
+    return resolveCmsMediaUrl(p) ?? undefined;
+  }, [poster]);
 
   const yt = useMemo(
     () => (resolved && !/^blob:/i.test(resolved) ? youtubeEmbedUrl(resolved) : null),
@@ -78,7 +87,7 @@ export function TestimonialVideoPlayer({
 
   useEffect(() => {
     setVideoError(false);
-  }, [resolved, yt, vimeo]);
+  }, [resolved, resolvedPoster, yt, vimeo]);
 
   if (!resolved) {
     return (
@@ -127,6 +136,7 @@ export function TestimonialVideoPlayer({
         <video
           key={resolved}
           src={resolved}
+          poster={resolvedPoster}
           controls
           playsInline
           preload="metadata"

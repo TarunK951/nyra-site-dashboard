@@ -4,10 +4,11 @@ import {
   ConflictError,
   createCollectionItem,
   deleteCollectionItem,
+  registerTestimonialVideoUrl,
   updateCollectionItem,
+  uploadTestimonialVideoFileWithFallback,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
-import { uploadTestimonialVideoToCloud } from "@/lib/dashboard-video-upload";
 import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
 import { TestimonialMarketingPreview } from "@/components/cms/TestimonialMarketingPreview";
 import { TestimonialVideoPlayer } from "@/components/cms/TestimonialVideoPlayer";
@@ -61,7 +62,10 @@ export function TestimonialsEditor({
   const [videoInputMode, setVideoInputMode] = useState<"link" | "upload">("link");
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [videoUploadBusy, setVideoUploadBusy] = useState(false);
+  const [stagedVideoFile, setStagedVideoFile] = useState<File | null>(null);
+  const [stagedPosterFile, setStagedPosterFile] = useState<File | null>(null);
   const videoFileInputRef = useRef<HTMLInputElement>(null);
+  const posterFileInputRef = useRef<HTMLInputElement>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
 
   const clearLocalVideoPreview = useCallback(() => {
@@ -75,6 +79,8 @@ export function TestimonialsEditor({
   const openCreate = () => {
     setPreview(null);
     clearLocalVideoPreview();
+    setStagedVideoFile(null);
+    setStagedPosterFile(null);
     setVideoUploadBusy(false);
     setVideoInputMode("link");
     setEditing(emptyItem());
@@ -86,6 +92,8 @@ export function TestimonialsEditor({
   const openEdit = (it: TestimonialItem) => {
     setPreview(null);
     clearLocalVideoPreview();
+    setStagedVideoFile(null);
+    setStagedPosterFile(null);
     setVideoUploadBusy(false);
     setVideoInputMode((it.mediaUrl ?? "").trim() ? "link" : "upload");
     setEditing({ ...it });
@@ -95,14 +103,65 @@ export function TestimonialsEditor({
   };
 
   const closeModal = useCallback(() => {
+    uploadAbortRef.current?.abort();
     clearLocalVideoPreview();
     setVideoUploadBusy(false);
+    setStagedVideoFile(null);
+    setStagedPosterFile(null);
     setModalOpen(false);
     setEditing(null);
     setVideoInputMode("link");
     setFieldErrors({});
     setFormError(null);
   }, [clearLocalVideoPreview]);
+
+  const uploadStagedToServer = useCallback(async () => {
+    if (!stagedVideoFile) return;
+    uploadAbortRef.current?.abort();
+    const ac = new AbortController();
+    uploadAbortRef.current = ac;
+    setVideoUploadBusy(true);
+    setFormError(null);
+    setFieldErrors((f) => ({ ...f, mediaUrl: undefined }));
+    try {
+      const { video_url, poster_url } =
+        await uploadTestimonialVideoFileWithFallback(
+          token,
+          moduleKey,
+          stagedVideoFile,
+          stagedPosterFile,
+          ac.signal,
+        );
+      setEditing((ed) => {
+        if (!ed) return null;
+        const next: TestimonialItem = { ...ed, mediaUrl: video_url };
+        if (poster_url?.trim()) next.posterUrl = poster_url.trim();
+        else delete next.posterUrl;
+        return next;
+      });
+      setStagedVideoFile(null);
+      setStagedPosterFile(null);
+      if (posterFileInputRef.current) posterFileInputRef.current.value = "";
+      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+      clearLocalVideoPreview();
+    } catch (err: unknown) {
+      const aborted =
+        (err instanceof DOMException && err.name === "AbortError") ||
+        (err instanceof Error && err.name === "AbortError");
+      if (!aborted) {
+        setFormError(err instanceof Error ? err.message : "Upload failed");
+      }
+    } finally {
+      setVideoUploadBusy(false);
+      if (uploadAbortRef.current === ac) uploadAbortRef.current = null;
+    }
+  }, [
+    clearLocalVideoPreview,
+    moduleKey,
+    stagedPosterFile,
+    stagedVideoFile,
+    token,
+  ]);
 
   const save = useCallback(async () => {
     if (!editing) return;
@@ -121,26 +180,51 @@ export function TestimonialsEditor({
       setFormError(null);
       return;
     }
+    if (editing.type === "video" && videoInputMode === "upload" && stagedVideoFile) {
+      setFieldErrors({
+        mediaUrl:
+          "Upload the staged video (and optional poster) with “Upload to server” before saving.",
+      });
+      setFormError(null);
+      return;
+    }
     const t = editing.type === "video" ? "video" : "text";
     const isExisting = items.some((x) => x.id === editing.id);
 
-    /** Text items must not send `mediaUrl` — API rejects empty string / missing URL. */
+    /** Text items must not send `mediaUrl` / `posterUrl`. */
     const item: TestimonialItem = {
       ...editing,
       type: t,
       quote,
       name,
     };
-    if (t === "video") {
-      item.mediaUrl = mediaUrlTrim;
-    } else {
+    if (t === "text") {
       delete item.mediaUrl;
+      delete item.posterUrl;
     }
 
     setFieldErrors({});
     setBusy(true);
     setFormError(null);
     try {
+      if (t === "video") {
+        let finalVideo = mediaUrlTrim;
+        let finalPoster = (editing.posterUrl ?? "").trim();
+        if (videoInputMode === "link") {
+          const reg = await registerTestimonialVideoUrl(
+            token,
+            moduleKey,
+            mediaUrlTrim,
+            finalPoster || undefined,
+          );
+          finalVideo = reg.video_url;
+          finalPoster = (reg.poster_url ?? "").trim() || finalPoster;
+        }
+        item.mediaUrl = finalVideo;
+        if (finalPoster) item.posterUrl = finalPoster;
+        else delete item.posterUrl;
+      }
+
       const v = moduleData.version;
       const next = isExisting
         ? await updateCollectionItem(
@@ -162,7 +246,12 @@ export function TestimonialsEditor({
       onModuleUpdated(mod);
       closeModal();
     } catch (e) {
-      if (e instanceof ConflictError) {
+      const aborted =
+        (e instanceof DOMException && e.name === "AbortError") ||
+        (e instanceof Error && e.name === "AbortError");
+      if (aborted) {
+        /* user cancelled in-flight register */
+      } else if (e instanceof ConflictError) {
         await reloadModule();
         setFormError(
           `${e.message} Latest version was loaded — review the form and try Save again.`,
@@ -181,7 +270,9 @@ export function TestimonialsEditor({
     moduleKey,
     onModuleUpdated,
     reloadModule,
+    stagedVideoFile,
     token,
+    videoInputMode,
   ]);
 
   const confirmDelete = async () => {
@@ -274,10 +365,19 @@ export function TestimonialsEditor({
                     e.target.value === "video" ? "video" : "text";
                   clearLocalVideoPreview();
                   setVideoUploadBusy(false);
+                  setStagedVideoFile(null);
+                  setStagedPosterFile(null);
                   setVideoInputMode("link");
                   setEditing({
                     ...editing,
                     type: nextType,
+                    ...(nextType === "video"
+                      ? {
+                          mediaUrl: (editing.mediaUrl ?? "").trim()
+                            ? editing.mediaUrl
+                            : "",
+                        }
+                      : { mediaUrl: undefined, posterUrl: undefined }),
                   });
                 }}>
                 <option value="text">Text</option>
@@ -298,6 +398,10 @@ export function TestimonialsEditor({
                       onClick={() => {
                         clearLocalVideoPreview();
                         setVideoUploadBusy(false);
+                        setStagedVideoFile(null);
+                        setStagedPosterFile(null);
+                        if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+                        if (posterFileInputRef.current) posterFileInputRef.current.value = "";
                         setVideoInputMode("link");
                       }}
                       disabled={busy || videoUploadBusy}
@@ -325,110 +429,133 @@ export function TestimonialsEditor({
                     </button>
                   </div>
                   {videoInputMode === "link" ? (
-                    <input
-                      className={inputClass(!!fieldErrors.mediaUrl)}
-                      value={editing.mediaUrl ?? ""}
-                      aria-invalid={!!fieldErrors.mediaUrl}
-                      placeholder="Direct .mp4 / .webm URL, or YouTube / Vimeo link"
-                      onChange={(e) => {
-                        clearLocalVideoPreview();
-                        setVideoUploadBusy(false);
-                        setEditing({
-                          ...editing,
-                          mediaUrl: e.target.value,
-                        });
-                        setFieldErrors((f) => ({
-                          ...f,
-                          mediaUrl: undefined,
-                        }));
-                      }}
-                    />
+                    <div key="testimonial-video-link" className="space-y-2">
+                      <input
+                        className={inputClass(!!fieldErrors.mediaUrl)}
+                        value={
+                          editing.mediaUrl == null
+                            ? ""
+                            : String(editing.mediaUrl)
+                        }
+                        aria-invalid={!!fieldErrors.mediaUrl}
+                        placeholder="Direct .mp4 / .webm URL, or YouTube / Vimeo link"
+                        onChange={(e) => {
+                          clearLocalVideoPreview();
+                          setVideoUploadBusy(false);
+                          setEditing({
+                            ...editing,
+                            mediaUrl: e.target.value,
+                          });
+                          setFieldErrors((f) => ({
+                            ...f,
+                            mediaUrl: undefined,
+                          }));
+                        }}
+                      />
+                    </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div key="testimonial-video-upload" className="space-y-2">
                       <input
                         ref={videoFileInputRef}
                         type="file"
-                        accept="video/*"
+                        accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.webm,.mov,.avi,.mkv,.ogg,video/*"
                         className="sr-only"
                         tabIndex={-1}
                         onChange={(e) => {
                           const f = e.target.files?.[0] ?? null;
                           e.target.value = "";
                           if (!f) return;
+                          uploadAbortRef.current?.abort();
+                          setVideoUploadBusy(false);
+                          setFormError(null);
+                          setStagedVideoFile(f);
+                          setStagedPosterFile(null);
+                          if (posterFileInputRef.current) {
+                            posterFileInputRef.current.value = "";
+                          }
                           clearLocalVideoPreview();
                           const objectUrl = URL.createObjectURL(f);
                           setLocalPreviewUrl(objectUrl);
-                          const ac = new AbortController();
-                          uploadAbortRef.current = ac;
-                          setVideoUploadBusy(true);
-                          setFormError(null);
-                          setEditing({ ...editing, mediaUrl: "" });
+                          setEditing({
+                            ...editing,
+                            mediaUrl: "",
+                            posterUrl: undefined,
+                          });
                           setFieldErrors((fr) => ({
                             ...fr,
                             mediaUrl: undefined,
                           }));
-                          void (async () => {
-                            try {
-                              const { url } =
-                                await uploadTestimonialVideoToCloud(
-                                  token,
-                                  f,
-                                  ac.signal,
-                                );
-                              setEditing((ed) =>
-                                ed ? { ...ed, mediaUrl: url } : null,
-                              );
-                              setVideoInputMode("link");
-                              setFieldErrors((fr) => ({
-                                ...fr,
-                                mediaUrl: undefined,
-                              }));
-                            } catch (err: unknown) {
-                              const aborted =
-                                (err instanceof DOMException &&
-                                  err.name === "AbortError") ||
-                                (err instanceof Error &&
-                                  err.name === "AbortError");
-                              if (aborted) return;
-                              setFormError(
-                                err instanceof Error
-                                  ? err.message
-                                  : "Upload failed",
-                              );
-                            } finally {
-                              setLocalPreviewUrl((prev) => {
-                                if (prev === objectUrl) {
-                                  URL.revokeObjectURL(objectUrl);
-                                  return null;
-                                }
-                                URL.revokeObjectURL(objectUrl);
-                                return prev;
-                              });
-                              setVideoUploadBusy(false);
-                              if (uploadAbortRef.current === ac) {
-                                uploadAbortRef.current = null;
-                              }
-                            }
-                          })();
+                        }}
+                      />
+                      <input
+                        ref={posterFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        tabIndex={-1}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] ?? null;
+                          e.target.value = "";
+                          if (!f) return;
+                          setStagedPosterFile(f);
                         }}
                       />
                       <div className="flex flex-wrap items-center gap-2">
                         <ToolbarButton
-                          onClick={() =>
-                            videoFileInputRef.current?.click()
-                          }
+                          onClick={() => videoFileInputRef.current?.click()}
                           disabled={busy || videoUploadBusy}>
                           Choose video file
                         </ToolbarButton>
+                        <ToolbarButton
+                          onClick={() => posterFileInputRef.current?.click()}
+                          disabled={busy || videoUploadBusy || !stagedVideoFile}>
+                          Poster thumbnail (optional)
+                        </ToolbarButton>
+                        <ToolbarButton
+                          variant="primary"
+                          onClick={() => void uploadStagedToServer()}
+                          disabled={
+                            busy || videoUploadBusy || !stagedVideoFile
+                          }>
+                          Upload to server
+                        </ToolbarButton>
                       </div>
+                      {stagedPosterFile ? (
+                        <p className="text-[12px] text-[var(--foreground-secondary)]">
+                          Poster: {stagedPosterFile.name}
+                        </p>
+                      ) : null}
                       <p className="text-[12px] leading-relaxed text-[var(--foreground-secondary)]">
-                        The file uploads to your configured storage right away.
-                        When it finishes, the public link is filled in and saved
-                        with the testimonial when you click Save.
+                        Choose a video (and optional poster image), then click
+                        Upload to server. If the API returns “too large”
+                        (413), the dashboard retries via cloud storage when{" "}
+                        <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
+                          BLOB_READ_WRITE_TOKEN
+                        </code>{" "}
+                        is set.
                       </p>
                     </div>
                   )}
                 </Field>
+                {editing.type === "video" && videoInputMode === "link" ? (
+                  <Field label="Poster image URL (optional)">
+                    <input
+                      className={inputClass()}
+                      value={
+                        editing.posterUrl == null
+                          ? ""
+                          : String(editing.posterUrl)
+                      }
+                      placeholder="https://… (optional; sent with the video URL on save)"
+                      onChange={(e) =>
+                        setEditing({
+                          ...editing,
+                          posterUrl: e.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                ) : null}
                 <div className="mt-4 space-y-2">
                   {videoUploadBusy ? (
                     <div
@@ -439,7 +566,7 @@ export function TestimonialsEditor({
                         className="inline-block size-5 shrink-0 animate-spin rounded-full border-2 border-solid border-[var(--text-muted)] border-t-transparent"
                         aria-hidden
                       />
-                      Uploading video to storage…
+                      Uploading to content API…
                     </div>
                   ) : null}
                   <p className="text-[12px] font-medium text-[var(--foreground-secondary)]">
@@ -455,6 +582,11 @@ export function TestimonialsEditor({
                           (editing.mediaUrl ?? "").trim()) ||
                         ""
                       }
+                      poster={
+                        localPreviewUrl?.startsWith("blob:")
+                          ? undefined
+                          : (editing.posterUrl ?? "").trim() || undefined
+                      }
                     />
                   </div>
                   {(localPreviewUrl || (editing.mediaUrl ?? "").trim()) &&
@@ -462,9 +594,22 @@ export function TestimonialsEditor({
                     <ToolbarButton
                       variant="danger"
                       onClick={() => {
+                        uploadAbortRef.current?.abort();
                         clearLocalVideoPreview();
                         setVideoUploadBusy(false);
-                        setEditing({ ...editing, mediaUrl: "" });
+                        setStagedVideoFile(null);
+                        setStagedPosterFile(null);
+                        if (videoFileInputRef.current) {
+                          videoFileInputRef.current.value = "";
+                        }
+                        if (posterFileInputRef.current) {
+                          posterFileInputRef.current.value = "";
+                        }
+                        setEditing({
+                          ...editing,
+                          mediaUrl: "",
+                          posterUrl: undefined,
+                        });
                         setFieldErrors((f) => ({
                           ...f,
                           mediaUrl: undefined,
