@@ -39,6 +39,7 @@ function TestimonialVideoCard({ item }: { item: TestimonialItem }) {
         {hasMedia ? (
           <TestimonialVideoPlayer
             src={media}
+            poster={(item.posterUrl ?? "").trim() || undefined}
             maxHeightClass="max-h-[min(52vw,280px)] sm:max-h-[300px]"
             className="rounded-[16px]"
           />
