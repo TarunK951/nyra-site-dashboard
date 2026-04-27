@@ -34,6 +34,8 @@ export type TestimonialItem = {
   role?: string;
   tag?: string;
   mediaUrl?: string;
+  /** Optional thumbnail (from upload/register response `poster_url`). */
+  posterUrl?: string;
   visible?: boolean;
 };
 

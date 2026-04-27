@@ -243,15 +243,32 @@ async function authFetch(
   return { res, body };
 }
 
+function resolveMultipartFetchUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  /** Dashboard App Router handlers only — never send `/api/content/*` to the wrong host. */
+  if (path.startsWith("/api/cms/")) {
+    if (typeof window !== "undefined" && window.location?.origin) {
+      return `${window.location.origin}${path}`;
+    }
+    return path;
+  }
+  if (path.startsWith("/")) {
+    return `${getApiBase()}${path}`;
+  }
+  return `${getApiBase()}${path}`;
+}
+
 async function authFetchMultipart(
   path: string,
   token: string,
   formData: FormData,
   allowRefreshRetry = true,
+  signal?: AbortSignal,
 ): Promise<{ res: Response; body: unknown }> {
-  const res = await fetch(`${getApiBase()}${path}`, {
+  const res = await fetch(resolveMultipartFetchUrl(path), {
     method: "POST",
     cache: "no-store",
+    signal,
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -274,7 +291,7 @@ async function authFetchMultipart(
           persistSessionTokens(next.accessToken);
         }
         dispatchTokensUpdated(next.accessToken, next.refreshToken);
-        return authFetchMultipart(path, next.accessToken, formData, false);
+        return authFetchMultipart(path, next.accessToken, formData, false, signal);
       } catch {
         clearSessionTokens();
         dispatchAuthCleared();
@@ -538,6 +555,8 @@ export async function uploadItemMedia(
     `/api/content/${encodeURIComponent(moduleKey)}/items/${encodeURIComponent(collection)}/${encodeURIComponent(itemId)}/media`,
     token,
     formData,
+    true,
+    undefined,
   );
   throwIfConflict(res, body);
   if (!res.ok) {
@@ -556,6 +575,174 @@ export async function uploadItemMedia(
     }
   }
   return { module: mod, url };
+}
+
+function testimonialUploadRecord(body: unknown): Record<string, unknown> {
+  if (!body || typeof body !== "object") return {};
+  const inner = unwrapApiData(body);
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    return inner as Record<string, unknown>;
+  }
+  return body as Record<string, unknown>;
+}
+
+function parseTestimonialUploadResult(body: unknown): {
+  video_url: string;
+  poster_url?: string;
+} {
+  const d = testimonialUploadRecord(body);
+  const videoRaw =
+    (typeof d.video_url === "string" && d.video_url) ||
+    (typeof d.videoUrl === "string" && d.videoUrl) ||
+    "";
+  const video = videoRaw.trim();
+  if (!video) {
+    throw new Error(extractMessage(body, "Response did not include a video URL"));
+  }
+  const posterRaw =
+    (typeof d.poster_url === "string" && d.poster_url) ||
+    (typeof d.posterUrl === "string" && d.posterUrl) ||
+    "";
+  const posterTrim = posterRaw.trim();
+  return {
+    video_url: video,
+    ...(posterTrim ? { poster_url: posterTrim } : {}),
+  };
+}
+
+/** Multipart: `video` + optional `poster` → `POST /api/content/:moduleKey/upload` */
+export async function uploadTestimonialVideoFile(
+  token: string,
+  moduleKey: ModuleKey,
+  video: File,
+  poster?: File | null,
+  signal?: AbortSignal,
+): Promise<{ video_url: string; poster_url?: string }> {
+  const formData = new FormData();
+  formData.append("video", video);
+  if (poster) formData.append("poster", poster);
+  const path = `/api/content/${encodeURIComponent(moduleKey)}/upload`;
+  const { res, body } = await authFetchMultipart(path, token, formData, true, signal);
+  if (res.status === 413) {
+    const err = new Error("HTTP_413_PAYLOAD_TOO_LARGE");
+    (err as Error & { code?: string }).code = "HTTP_413";
+    throw err;
+  }
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Video upload failed"));
+  }
+  return parseTestimonialUploadResult(body);
+}
+
+/**
+ * Same-origin dashboard route: POST /api/cms/upload-video (multipart `file`).
+ * Uses Vercel Blob when BLOB_READ_WRITE_TOKEN is set, or CMS_VIDEO_UPLOAD_* to another backend.
+ */
+export async function uploadVideoViaDashboardBlobRoute(
+  token: string,
+  file: File,
+  signal?: AbortSignal,
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const url = resolveMultipartFetchUrl("/api/cms/upload-video");
+  const res = await fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    signal,
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const body: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Dashboard video upload failed"));
+  }
+  if (!body || typeof body !== "object") {
+    throw new Error("Unexpected response from dashboard upload");
+  }
+  const u = (body as Record<string, unknown>).url;
+  if (typeof u !== "string" || !u.trim()) {
+    throw new Error("Dashboard upload did not return a URL");
+  }
+  return { url: u.trim() };
+}
+
+/**
+ * Tries the content API upload first; on HTTP 413 (nginx / body limit), retries via
+ * `/api/cms/upload-video` so large files can use Blob or another configured host.
+ */
+export async function uploadTestimonialVideoFileWithFallback(
+  token: string,
+  moduleKey: ModuleKey,
+  video: File,
+  poster?: File | null,
+  signal?: AbortSignal,
+): Promise<{ video_url: string; poster_url?: string }> {
+  try {
+    return await uploadTestimonialVideoFile(
+      token,
+      moduleKey,
+      video,
+      poster,
+      signal,
+    );
+  } catch (e) {
+    const code = typeof e === "object" && e !== null ? (e as { code?: string }).code : undefined;
+    const is413 =
+      code === "HTTP_413" ||
+      (e instanceof Error && e.message === "HTTP_413_PAYLOAD_TOO_LARGE");
+    if (!is413) throw e;
+    if (poster) {
+      try {
+        return await uploadTestimonialVideoFile(
+          token,
+          moduleKey,
+          video,
+          null,
+          signal,
+        );
+      } catch (e2) {
+        const c2 =
+          typeof e2 === "object" && e2 !== null ? (e2 as { code?: string }).code : undefined;
+        const again =
+          c2 === "HTTP_413" ||
+          (e2 instanceof Error && e2.message === "HTTP_413_PAYLOAD_TOO_LARGE");
+        if (!again) throw e2;
+      }
+    }
+    try {
+      const { url } = await uploadVideoViaDashboardBlobRoute(token, video, signal);
+      return { video_url: url };
+    } catch (inner) {
+      const hint =
+        "The API rejected the file as too large (HTTP 413). Fix: raise nginx client_max_body_size (and app limits) on the API server, or set BLOB_READ_WRITE_TOKEN (Vercel Blob) / CMS_VIDEO_UPLOAD_URL so this dashboard can upload the file without hitting that limit.";
+      const innerMsg = inner instanceof Error ? inner.message : String(inner);
+      throw new Error(`${hint} (${innerMsg})`);
+    }
+  }
+}
+
+/** JSON `{ url, posterUrl? }` → same upload route (external / hosted URL registration). */
+export async function registerTestimonialVideoUrl(
+  token: string,
+  moduleKey: ModuleKey,
+  url: string,
+  posterUrl?: string | null,
+  signal?: AbortSignal,
+): Promise<{ video_url: string; poster_url?: string }> {
+  const path = `/api/content/${encodeURIComponent(moduleKey)}/upload`;
+  const payload: Record<string, string> = { url: url.trim() };
+  const p = (posterUrl ?? "").trim();
+  if (p) payload.posterUrl = p;
+  const { res, body } = await authFetch(path, token, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Video URL registration failed"));
+  }
+  return parseTestimonialUploadResult(body);
 }
 
 export class ConflictError extends Error {

@@ -22,6 +22,7 @@ import type { EditorProps } from "../editor-types";
 import { useCallback, useState } from "react";
 
 const COLLECTION = "steps";
+const MAX_HOW_IT_WORKS_STEPS = 5;
 
 function emptyItem(order: number): HowItWorksStep {
   return {
@@ -61,6 +62,11 @@ export function HowItWorksEditor({
 
   const save = useCallback(async () => {
     if (!editing) return;
+    const isExisting = items.some((x) => x.id === editing.id);
+    if (!isExisting && items.length >= MAX_HOW_IT_WORKS_STEPS) {
+      setFormError("Add only 5 cards for a better site experience.");
+      return;
+    }
     const title = (editing.title ?? "").trim();
     if (!title) {
       setFieldErrors({ title: "Title is required." });
@@ -148,20 +154,29 @@ export function HowItWorksEditor({
     }
   };
 
+  const atStepLimit = items.length >= MAX_HOW_IT_WORKS_STEPS;
+
   return (
     <div className="space-y-4">
-      <ToolbarButton
-        variant="primary"
-        onClick={() => {
-          setPreview(null);
-          setEditing(emptyItem(items.length + 1));
-          setFieldErrors({});
-          setFormError(null);
-          setModalOpen(true);
-        }}
-        disabled={busy}>
-        Add step
-      </ToolbarButton>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <ToolbarButton
+          variant="primary"
+          onClick={() => {
+            setPreview(null);
+            setEditing(emptyItem(items.length + 1));
+            setFieldErrors({});
+            setFormError(null);
+            setModalOpen(true);
+          }}
+          disabled={busy || atStepLimit}>
+          Add step
+        </ToolbarButton>
+        {atStepLimit ? (
+          <p className="text-[13px] text-[var(--foreground-secondary)]" role="status">
+            Add only 5 cards for a better site experience.
+          </p>
+        ) : null}
+      </div>
       {items.length === 0 ? (
         <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-8 text-center text-[14px] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)]">
           No steps yet.

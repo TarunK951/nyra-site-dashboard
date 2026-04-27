@@ -394,12 +394,12 @@ export function NyraDashboard() {
             ? "w-[var(--sidebar-collapsed)] min-w-[var(--sidebar-collapsed)]"
             : "w-[var(--sidebar-expanded)] min-w-[var(--sidebar-expanded)]"
         }`}>
-        <div className="shrink-0 border-b border-solid [border-color:var(--divider-soft)] px-3 pb-3 pt-3">
+        <div className="flex min-h-[var(--shell-header-min-h)] shrink-0 flex-col justify-center border-b border-solid [border-color:var(--divider-soft)] p-3">
           <div
             className={
               sidebarCollapsed
                 ? "flex flex-col items-center gap-2.5"
-                : "flex items-center gap-2.5"
+                : "flex items-start gap-2.5"
             }>
             <button
               type="button"
@@ -413,15 +413,15 @@ export function NyraDashboard() {
               <ChevronIcon collapsed={sidebarCollapsed} />
             </button>
             {!sidebarCollapsed && (
-              <div className="neu-surface-sm min-w-0 flex-1 px-3 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="relative h-9 w-14 shrink-0">
+              <div className="neu-surface-sm min-w-0 flex-1 px-2.5 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="relative h-7 w-11 shrink-0">
                     <Image
                       src="/nyraai-logo.png"
                       alt=""
-                      width={120}
-                      height={48}
-                      className="h-9 w-14 object-contain object-left"
+                      width={96}
+                      height={40}
+                      className="h-7 w-11 object-contain object-left"
                       priority
                       aria-hidden
                     />
@@ -430,7 +430,7 @@ export function NyraDashboard() {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
                       NyraAI
                     </p>
-                    <p className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
+                    <p className="text-[13px] font-semibold tracking-tight text-[var(--foreground)]">
                       Content
                     </p>
                   </div>
@@ -506,8 +506,8 @@ export function NyraDashboard() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 border-b border-solid [border-color:var(--divider-soft)] bg-[var(--background)] px-3 py-4 sm:px-6">
-          <div className="mx-auto flex max-w-[1600px] min-w-0 flex-row items-center justify-end">
+        <header className="flex min-h-[var(--shell-header-min-h)] shrink-0 flex-col justify-center border-b border-solid [border-color:var(--divider-soft)] bg-[var(--background)] py-3 ps-5 pe-5 sm:ps-6 sm:pe-6 md:ps-8 md:pe-8">
+          <div className="flex w-full min-w-0 flex-row items-center justify-end">
             <ThemeToggle />
           </div>
         </header>
