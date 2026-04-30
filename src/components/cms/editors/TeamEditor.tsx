@@ -31,10 +31,13 @@ function emptyItem(): TeamMember {
     role: "",
     tagline: "",
     image: "",
-    social: { linkedin: "" },
+    email: "",
+    social: { linkedin: "", github: "", instagram: "", facebook: "" },
     visible: true,
   };
 }
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function TeamEditor({
   token,
@@ -49,7 +52,10 @@ export function TeamEditor({
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    email?: string;
+  }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [preview, setPreview] = useState<TeamMember | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -96,8 +102,14 @@ export function TeamEditor({
   const save = useCallback(async () => {
     if (!editing) return;
     const name = (editing.name ?? "").trim();
-    if (!name) {
-      setFieldErrors({ name: "Name is required." });
+    const email = (editing.email ?? "").trim();
+    const errs: { name?: string; email?: string } = {};
+    if (!name) errs.name = "Name is required.";
+    if (email && !EMAIL_REGEX.test(email)) {
+      errs.email = "Enter a valid email address.";
+    }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       setFormError(null);
       return;
     }
@@ -108,6 +120,7 @@ export function TeamEditor({
       role: editing.role,
       tagline: editing.tagline,
       image: editing.image,
+      email: email || undefined,
       social: editing.social,
       visible: editing.visible,
     };
@@ -336,16 +349,78 @@ export function TeamEditor({
                 ) : null}
               </div>
             </Field>
+            <Field label="Email" error={fieldErrors.email}>
+              <input
+                type="email"
+                className={inputClass(!!fieldErrors.email)}
+                value={editing.email ?? ""}
+                aria-invalid={!!fieldErrors.email}
+                placeholder="name@example.com"
+                onChange={(e) => {
+                  setEditing({ ...editing, email: e.target.value });
+                  setFieldErrors((f) => ({ ...f, email: undefined }));
+                }}
+              />
+            </Field>
             <Field label="LinkedIn URL">
               <input
                 className={inputClass()}
                 value={editing.social?.linkedin ?? ""}
+                placeholder="https://linkedin.com/in/…"
                 onChange={(e) =>
                   setEditing({
                     ...editing,
                     social: {
                       ...editing.social,
                       linkedin: e.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="GitHub URL">
+              <input
+                className={inputClass()}
+                value={editing.social?.github ?? ""}
+                placeholder="https://github.com/…"
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    social: {
+                      ...editing.social,
+                      github: e.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="Instagram URL">
+              <input
+                className={inputClass()}
+                value={editing.social?.instagram ?? ""}
+                placeholder="https://instagram.com/…"
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    social: {
+                      ...editing.social,
+                      instagram: e.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="Facebook URL">
+              <input
+                className={inputClass()}
+                value={editing.social?.facebook ?? ""}
+                placeholder="https://facebook.com/…"
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    social: {
+                      ...editing.social,
+                      facebook: e.target.value,
                     },
                   })
                 }

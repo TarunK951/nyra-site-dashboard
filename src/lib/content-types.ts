@@ -47,7 +47,14 @@ export type TeamMember = {
   role?: string;
   tagline?: string;
   image?: string;
-  social?: { linkedin?: string; [key: string]: unknown };
+  email?: string;
+  social?: {
+    linkedin?: string;
+    github?: string;
+    instagram?: string;
+    facebook?: string;
+    [key: string]: unknown;
+  };
   visible?: boolean;
 };
 
