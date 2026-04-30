@@ -5,6 +5,7 @@ import {
   createCollectionItem,
   deleteCollectionItem,
   updateCollectionItem,
+  uploadImageViaDashboardBlobRoute,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
 import { blogsPosts, newId, type BlogPost, type BlogSection } from "@/lib/content-types";
@@ -19,7 +20,7 @@ import {
   inputClass,
 } from "../shared";
 import type { EditorProps } from "../editor-types";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 const COLLECTION = "posts";
 
@@ -50,7 +51,7 @@ type FormState = {
   category: string;
   excerpt: string;
   publishedAt: string;
-  heroImage: string;
+  heroImages: string[];
   authorName: string;
   authorAvatar: string;
   tags: string;
@@ -70,13 +71,23 @@ function isoToDatetimeLocal(iso: string | undefined): string {
 }
 
 function postToForm(post: BlogPost): FormState {
+  const fromArray = Array.isArray(post.heroImages)
+    ? post.heroImages.filter(
+        (s): s is string => typeof s === "string" && s.trim().length > 0,
+      )
+    : [];
+  const fromLegacy =
+    typeof post.heroImage === "string" && post.heroImage.trim()
+      ? [post.heroImage.trim()]
+      : [];
+  const heroImages = fromArray.length > 0 ? fromArray : fromLegacy;
   return {
     slug: post.slug ?? "",
     title: post.title ?? "",
     category: post.category ?? "",
     excerpt: post.excerpt ?? "",
     publishedAt: isoToDatetimeLocal(post.publishedAt),
-    heroImage: post.heroImage ?? "",
+    heroImages,
     authorName: post.author?.name ?? "",
     authorAvatar: post.author?.avatar ?? "",
     tags: (post.tags ?? []).join(", "),
@@ -90,7 +101,7 @@ function emptyForm(): FormState {
     category: "",
     excerpt: "",
     publishedAt: localDatetimeLocalValue(),
-    heroImage: "",
+    heroImages: [],
     authorName: "",
     authorAvatar: "",
     tags: "",
@@ -157,10 +168,101 @@ export function BlogsEditor({
   const [formError, setFormError] = useState<string | null>(null);
   const [blogPreview, setBlogPreview] = useState<BlogPost | null>(null);
 
+  const [heroPendingUrl, setHeroPendingUrl] = useState("");
+  const [heroUploading, setHeroUploading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const heroFileInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
+  const heroUploadAbortRef = useRef<AbortController | null>(null);
+  const avatarUploadAbortRef = useRef<AbortController | null>(null);
+
+  const addHeroUrl = useCallback((url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setForm((f) =>
+      f.heroImages.includes(trimmed)
+        ? f
+        : { ...f, heroImages: [...f.heroImages, trimmed] },
+    );
+  }, []);
+
+  const removeHeroAt = useCallback((idx: number) => {
+    setForm((f) => ({
+      ...f,
+      heroImages: f.heroImages.filter((_, i) => i !== idx),
+    }));
+  }, []);
+
+  const moveHero = useCallback((idx: number, delta: -1 | 1) => {
+    setForm((f) => {
+      const next = [...f.heroImages];
+      const target = idx + delta;
+      if (target < 0 || target >= next.length) return f;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return { ...f, heroImages: next };
+    });
+  }, []);
+
+  const handleHeroFilesSelected = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+      heroUploadAbortRef.current?.abort();
+      const ac = new AbortController();
+      heroUploadAbortRef.current = ac;
+      setHeroUploading(true);
+      setFormError(null);
+      try {
+        for (const file of files) {
+          const { url } = await uploadImageViaDashboardBlobRoute(
+            token,
+            file,
+            "blogs",
+            ac.signal,
+          );
+          addHeroUrl(url);
+        }
+      } catch (e) {
+        if ((e as { name?: string })?.name === "AbortError") return;
+        setFormError(e instanceof Error ? e.message : "Hero image upload failed.");
+      } finally {
+        if (heroUploadAbortRef.current === ac) heroUploadAbortRef.current = null;
+        setHeroUploading(false);
+      }
+    },
+    [addHeroUrl, token],
+  );
+
+  const handleAvatarFileSelected = useCallback(
+    async (file: File) => {
+      avatarUploadAbortRef.current?.abort();
+      const ac = new AbortController();
+      avatarUploadAbortRef.current = ac;
+      setAvatarUploading(true);
+      setFormError(null);
+      try {
+        const { url } = await uploadImageViaDashboardBlobRoute(
+          token,
+          file,
+          "blogs/authors",
+          ac.signal,
+        );
+        setForm((f) => ({ ...f, authorAvatar: url }));
+      } catch (e) {
+        if ((e as { name?: string })?.name === "AbortError") return;
+        setFormError(e instanceof Error ? e.message : "Avatar upload failed.");
+      } finally {
+        if (avatarUploadAbortRef.current === ac) avatarUploadAbortRef.current = null;
+        setAvatarUploading(false);
+      }
+    },
+    [token],
+  );
+
   const openCreate = () => {
     setBlogPreview(null);
     setEditingSnapshot(null);
     setForm(emptyForm());
+    setHeroPendingUrl("");
     setFieldErrors({});
     setFormError(null);
     setModalOpen(true);
@@ -170,12 +272,20 @@ export function BlogsEditor({
     setBlogPreview(null);
     setEditingSnapshot(post);
     setForm(postToForm(post));
+    setHeroPendingUrl("");
     setFieldErrors({});
     setFormError(null);
     setModalOpen(true);
   };
 
   const closeModal = useCallback(() => {
+    heroUploadAbortRef.current?.abort();
+    avatarUploadAbortRef.current?.abort();
+    heroUploadAbortRef.current = null;
+    avatarUploadAbortRef.current = null;
+    setHeroUploading(false);
+    setAvatarUploading(false);
+    setHeroPendingUrl("");
     setModalOpen(false);
     setEditingSnapshot(null);
     setForm(emptyForm());
@@ -207,7 +317,10 @@ export function BlogsEditor({
     }
 
     const tags = parseTags(form.tags);
-    const heroTrim = form.heroImage.trim();
+    const heroList = form.heroImages
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    const primaryHero = heroList[0];
     const avatarTrim = form.authorAvatar.trim();
     const postSnapshot = editingSnapshot;
 
@@ -227,7 +340,8 @@ export function BlogsEditor({
           title,
           excerpt,
           publishedAt: publishedAtIso,
-          heroImage: heroTrim || undefined,
+          heroImage: primaryHero,
+          heroImages: heroList.length > 0 ? heroList : undefined,
           author: {
             name: authorName,
             avatar: avatarTrim || undefined,
@@ -257,7 +371,8 @@ export function BlogsEditor({
           title,
           excerpt,
           publishedAt: publishedAtIso,
-          heroImage: heroTrim || undefined,
+          heroImage: primaryHero,
+          heroImages: heroList.length > 0 ? heroList : undefined,
           author: {
             name: authorName,
             avatar: avatarTrim || undefined,
@@ -416,6 +531,11 @@ export function BlogsEditor({
               placeholder="ai-in-healthcare"
               required
             />
+            <p className="mt-1.5 text-[12px] leading-snug text-[var(--foreground-secondary)]">
+              The URL-friendly part shown in the post link, e.g.
+              <span className="font-mono"> /blog/ai-in-healthcare</span>. Use
+              lowercase letters, numbers and hyphens only — no spaces.
+            </p>
           </Field>
           <Field label="Title *" error={fieldErrors.title}>
             <input
@@ -468,13 +588,103 @@ export function BlogsEditor({
               }}
             />
           </Field>
-          <Field label="Hero image URL">
-            <input
-              className={inputClass()}
-              value={form.heroImage}
-              onChange={(e) => setForm({ ...form, heroImage: e.target.value })}
-              placeholder="https://…"
-            />
+          <Field label="Blog images">
+            <div className="space-y-3">
+              {form.heroImages.length > 0 ? (
+                <ul className="space-y-2">
+                  {form.heroImages.map((url, idx) => (
+                    <li
+                      key={`${url}-${idx}`}
+                      className="flex items-center gap-3 rounded-md [border:1px_solid_var(--divider-soft)] p-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Hero ${idx + 1}`}
+                        className="h-14 w-14 shrink-0 rounded object-cover [border:1px_solid_var(--divider-soft)]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] text-[var(--foreground-secondary)]">
+                          {url}
+                        </p>
+                        {idx === 0 ? (
+                          <p className="text-[11px] font-medium text-[var(--text-muted)]">
+                            Primary hero
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <ToolbarButton
+                          onClick={() => moveHero(idx, -1)}
+                          disabled={busy || idx === 0}
+                          aria-label={`Move image ${idx + 1} up`}>
+                          ↑
+                        </ToolbarButton>
+                        <ToolbarButton
+                          onClick={() => moveHero(idx, 1)}
+                          disabled={busy || idx === form.heroImages.length - 1}
+                          aria-label={`Move image ${idx + 1} down`}>
+                          ↓
+                        </ToolbarButton>
+                        <ToolbarButton
+                          onClick={() => removeHeroAt(idx)}
+                          disabled={busy}
+                          aria-label={`Remove image ${idx + 1}`}>
+                          Remove
+                        </ToolbarButton>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[12px] text-[var(--foreground-secondary)]">
+                  No images yet. Add images by URL or upload from your device.
+                </p>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  className={`${inputClass()} flex-1 min-w-[200px]`}
+                  value={heroPendingUrl}
+                  onChange={(e) => setHeroPendingUrl(e.target.value)}
+                  placeholder="https://… (paste image URL, then click Add)"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addHeroUrl(heroPendingUrl);
+                      setHeroPendingUrl("");
+                    }
+                  }}
+                />
+                <ToolbarButton
+                  onClick={() => {
+                    addHeroUrl(heroPendingUrl);
+                    setHeroPendingUrl("");
+                  }}
+                  disabled={busy || !heroPendingUrl.trim()}>
+                  Add URL
+                </ToolbarButton>
+                <input
+                  ref={heroFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml,image/*"
+                  multiple
+                  className="sr-only"
+                  tabIndex={-1}
+                  onChange={(e) => {
+                    const list = e.target.files;
+                    const files = list ? Array.from(list) : [];
+                    e.target.value = "";
+                    if (files.length === 0) return;
+                    void handleHeroFilesSelected(files);
+                  }}
+                />
+                <ToolbarButton
+                  onClick={() => heroFileInputRef.current?.click()}
+                  disabled={busy || heroUploading}>
+                  {heroUploading ? "Uploading…" : "Upload from device"}
+                </ToolbarButton>
+              </div>
+            </div>
           </Field>
           <Field label="Author name *" error={fieldErrors.authorName}>
             <input
@@ -489,15 +699,57 @@ export function BlogsEditor({
               required
             />
           </Field>
-          <Field label="Author avatar URL">
-            <input
-              className={inputClass()}
-              value={form.authorAvatar}
-              onChange={(e) =>
-                setForm({ ...form, authorAvatar: e.target.value })
-              }
-              placeholder="https://…"
-            />
+          <Field label="Author avatar">
+            <div className="space-y-2">
+              <input
+                className={inputClass()}
+                value={form.authorAvatar}
+                onChange={(e) =>
+                  setForm({ ...form, authorAvatar: e.target.value })
+                }
+                placeholder="https://… (paste URL or upload from device)"
+              />
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml,image/*"
+                className="sr-only"
+                tabIndex={-1}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  e.target.value = "";
+                  if (!f) return;
+                  void handleAvatarFileSelected(f);
+                }}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <ToolbarButton
+                  onClick={() => avatarFileInputRef.current?.click()}
+                  disabled={busy || avatarUploading}>
+                  {avatarUploading ? "Uploading…" : "Upload from device"}
+                </ToolbarButton>
+                {form.authorAvatar ? (
+                  <ToolbarButton
+                    onClick={() => setForm({ ...form, authorAvatar: "" })}
+                    disabled={busy || avatarUploading}>
+                    Clear
+                  </ToolbarButton>
+                ) : null}
+              </div>
+              {form.authorAvatar ? (
+                <div className="mt-1 flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={form.authorAvatar}
+                    alt="Avatar preview"
+                    className="h-12 w-12 rounded-full object-cover [border:1px_solid_var(--divider-soft)]"
+                  />
+                  <span className="truncate text-[12px] text-[var(--foreground-secondary)]">
+                    {form.authorAvatar}
+                  </span>
+                </div>
+              ) : null}
+            </div>
           </Field>
           <Field label="Tags (comma-separated)">
             <input
@@ -514,8 +766,12 @@ export function BlogsEditor({
             <ToolbarButton
               variant="primary"
               onClick={() => void save()}
-              disabled={busy}>
-              {busy ? "Saving…" : "Save"}
+              disabled={busy || heroUploading || avatarUploading}>
+              {busy
+                ? "Saving…"
+                : heroUploading || avatarUploading
+                  ? "Uploading…"
+                  : "Save"}
             </ToolbarButton>
           </div>
         </div>

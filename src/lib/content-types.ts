@@ -18,6 +18,8 @@ export type BlogPost = {
   excerpt?: string;
   publishedAt?: string;
   heroImage?: string;
+  /** Optional gallery; first entry mirrors `heroImage` for backwards compatibility. */
+  heroImages?: string[];
   author?: { name?: string; avatar?: string };
   sections?: BlogSection[];
   status?: string;

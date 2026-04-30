@@ -4,49 +4,52 @@ import { useCallback, useMemo, useState } from "react";
 import {
   ConflictError,
   replaceModule,
-  type ContentModulePayload,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
 import {
   type ProvenImpactData,
+  type ImpactStat,
+  type ImpactChartItem,
+  type ImpactQuote,
   getProvenImpactData,
+  newId,
 } from "@/lib/content-types";
-import { Field, FormAlert, Modal, ToolbarButton, inputClass } from "../shared";
+import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
+import {
+  ConfirmDialog,
+  Field,
+  FormAlert,
+  Modal,
+  ToolbarButton,
+  inputClass,
+} from "../shared";
 import type { EditorProps } from "../editor-types";
 
-function getEmptyState(): ProvenImpactData {
-  return {
-    stats: [
-      { id: "stat-1", value: "", label: "Productivity Increase" },
-      { id: "stat-2", value: "", label: "Faster Decision Making" },
-      { id: "stat-3", value: "", label: "Cost Reduction" },
-      { id: "stat-4", value: "", label: "Uptime SLA" },
-    ],
-    chartData: [
-      { id: "chart-1", label: "Fintech", percentage: 0 },
-      { id: "chart-2", label: "Healthcare", percentage: 0 },
-      { id: "chart-3", label: "Retail", percentage: 0 },
-      { id: "chart-4", label: "Manufacturing", percentage: 0 },
-      { id: "chart-5", label: "Logistics", percentage: 0 },
-    ],
-    quote: { text: "", author: "", role: "" },
-  };
+const MAX_STATS = 5;
+const MAX_CHART_ITEMS = 5;
+
+const limitMessage = (n: number) =>
+  `Add only ${n} cards for a better site experience.`;
+
+function emptyStat(): ImpactStat {
+  return { id: newId("stat"), value: "", label: "" };
 }
 
-function formDefaults(mod: ContentModulePayload): ProvenImpactData {
-  const fromApi = getProvenImpactData(mod);
-  const emptyQuote =
-    !(fromApi.quote.text ?? "").trim() &&
-    !(fromApi.quote.author ?? "").trim() &&
-    !(fromApi.quote.role ?? "").trim();
-  if (
-    fromApi.stats.length === 0 &&
-    fromApi.chartData.length === 0 &&
-    emptyQuote
-  ) {
-    return getEmptyState();
-  }
-  return fromApi;
+function emptyChart(): ImpactChartItem {
+  return { id: newId("chart"), label: "", percentage: 0 };
+}
+
+function emptyQuote(): ImpactQuote {
+  return { text: "", author: "", role: "" };
+}
+
+function quoteIsEmpty(q: ImpactQuote | undefined | null): boolean {
+  if (!q) return true;
+  return (
+    !(q.text ?? "").trim() &&
+    !(q.author ?? "").trim() &&
+    !(q.role ?? "").trim()
+  );
 }
 
 export function ProvenImpactEditor({
@@ -55,49 +58,133 @@ export function ProvenImpactEditor({
   moduleData,
   onModuleUpdated,
   reloadModule,
+  onError,
 }: EditorProps) {
   const data = useMemo(() => getProvenImpactData(moduleData), [moduleData]);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [formData, setFormData] = useState<ProvenImpactData>(() =>
-    formDefaults(moduleData),
-  );
+  const [editingStat, setEditingStat] = useState<ImpactStat | null>(null);
+  const [statIsNew, setStatIsNew] = useState(false);
+  const [editingChart, setEditingChart] = useState<ImpactChartItem | null>(null);
+  const [chartIsNew, setChartIsNew] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<ImpactQuote | null>(null);
+  const [quoteIsNew, setQuoteIsNew] = useState(false);
+
+  const [deleteStat, setDeleteStat] = useState<ImpactStat | null>(null);
+  const [deleteChart, setDeleteChart] = useState<ImpactChartItem | null>(null);
+  const [deleteQuoteOpen, setDeleteQuoteOpen] = useState(false);
+
+  const [statErrors, setStatErrors] = useState<{ label?: string }>({});
+  const [chartErrors, setChartErrors] = useState<{
+    label?: string;
+    percentage?: string;
+  }>({});
+  const [quoteErrors, setQuoteErrors] = useState<{ text?: string }>({});
+
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  const openForm = useCallback(() => {
-    setFormData(formDefaults(moduleData));
+  const persist = useCallback(
+    async (next: ProvenImpactData): Promise<boolean> => {
+      setBusy(true);
+      setFormError(null);
+      try {
+        const updated = await replaceModule(token, moduleKey, {
+          expected_version: moduleData.version,
+          title:
+            typeof moduleData.title === "string" && moduleData.title.trim()
+              ? moduleData.title
+              : "Our Proven Impact",
+          status:
+            typeof moduleData.status === "string" && moduleData.status
+              ? moduleData.status
+              : "draft",
+          content: {
+            stats: next.stats,
+            chartData: next.chartData,
+            quote: next.quote,
+          },
+        });
+        const mod = await ensureModuleAfterMutation(token, moduleKey, updated);
+        onModuleUpdated(mod);
+        return true;
+      } catch (e) {
+        if (e instanceof ConflictError) {
+          await reloadModule();
+          setFormError(
+            `${e.message} The latest version was loaded — review and try again.`,
+          );
+        } else {
+          setFormError(e instanceof Error ? e.message : "Save failed.");
+        }
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [
+      moduleData.status,
+      moduleData.title,
+      moduleData.version,
+      moduleKey,
+      onModuleUpdated,
+      reloadModule,
+      token,
+    ],
+  );
+
+  // ────────── stats ──────────
+  const openAddStat = () => {
+    if (data.stats.length >= MAX_STATS) {
+      setPageError(limitMessage(MAX_STATS));
+      return;
+    }
+    setPageError(null);
     setFormError(null);
-    setModalOpen(true);
-  }, [moduleData]);
-
-  const handleStatChange = (index: number, value: string) => {
-    const newStats = [...formData.stats];
-    newStats[index] = { ...newStats[index], value };
-    setFormData({ ...formData, stats: newStats });
+    setStatErrors({});
+    setEditingStat(emptyStat());
+    setStatIsNew(true);
   };
 
-  const handleChartChange = (index: number, percentage: number) => {
-    const newChart = [...formData.chartData];
-    newChart[index] = { ...newChart[index], percentage };
-    setFormData({ ...formData, chartData: newChart });
+  const openEditStat = (stat: ImpactStat) => {
+    setFormError(null);
+    setStatErrors({});
+    setEditingStat({ ...stat });
+    setStatIsNew(false);
   };
 
-  const handleQuoteChange = (
-    field: keyof ProvenImpactData["quote"],
-    value: string,
-  ) => {
-    setFormData({
-      ...formData,
-      quote: { ...formData.quote, [field]: value },
-    });
+  const saveStat = async () => {
+    if (!editingStat) return;
+    const label = (editingStat.label ?? "").trim();
+    const value = (editingStat.value ?? "").trim();
+    if (!label) {
+      setStatErrors({ label: "Static name is required." });
+      return;
+    }
+    const item: ImpactStat = { ...editingStat, label, value };
+    let nextStats: ImpactStat[];
+    if (statIsNew) {
+      if (data.stats.length >= MAX_STATS) {
+        setFormError(limitMessage(MAX_STATS));
+        return;
+      }
+      nextStats = [...data.stats, item];
+    } else {
+      nextStats = data.stats.map((s) => (s.id === item.id ? item : s));
+    }
+    const ok = await persist({ ...data, stats: nextStats });
+    if (ok) {
+      setEditingStat(null);
+      setStatErrors({});
+    }
   };
 
-  const save = useCallback(async () => {
+  const removeStat = async () => {
+    if (!deleteStat) return;
+    const nextStats = data.stats.filter((s) => s.id !== deleteStat.id);
     setBusy(true);
-    setFormError(null);
     try {
-      const next = await replaceModule(token, moduleKey, {
+      const updated = await replaceModule(token, moduleKey, {
         expected_version: moduleData.version,
         title:
           typeof moduleData.title === "string" && moduleData.title.trim()
@@ -108,243 +195,531 @@ export function ProvenImpactEditor({
             ? moduleData.status
             : "draft",
         content: {
-          stats: formData.stats,
-          chartData: formData.chartData,
-          quote: formData.quote,
+          stats: nextStats,
+          chartData: data.chartData,
+          quote: data.quote,
         },
       });
-      const mod = await ensureModuleAfterMutation(token, moduleKey, next);
+      const mod = await ensureModuleAfterMutation(token, moduleKey, updated);
       onModuleUpdated(mod);
-      setModalOpen(false);
+      setDeleteStat(null);
     } catch (e) {
       if (e instanceof ConflictError) {
         await reloadModule();
-        setFormError(
-          `${e.message} The latest version was loaded — review the form and try Save again.`,
-        );
+        onError(`${e.message} Reloaded latest version.`);
       } else {
-        setFormError(e instanceof Error ? e.message : "Save failed.");
+        onError(e instanceof Error ? e.message : "Delete failed");
       }
     } finally {
       setBusy(false);
     }
-  }, [
-    formData,
-    moduleData.status,
-    moduleData.title,
-    moduleData.version,
-    moduleKey,
-    onModuleUpdated,
-    reloadModule,
-    token,
-  ]);
+  };
 
-  const panelClass =
-    "neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] shadow-[var(--shadow-button)]";
-  const innerTileClass =
-    "rounded-xl border border-solid [border-color:var(--divider-soft)] bg-[var(--accent-fill)] px-3 py-3 sm:px-4 sm:py-3.5";
+  // ────────── chart (adoption) ──────────
+  const openAddChart = () => {
+    if (data.chartData.length >= MAX_CHART_ITEMS) {
+      setPageError(limitMessage(MAX_CHART_ITEMS));
+      return;
+    }
+    setPageError(null);
+    setFormError(null);
+    setChartErrors({});
+    setEditingChart(emptyChart());
+    setChartIsNew(true);
+  };
 
-  const showStats = data.stats.length > 0;
-  const showChart = data.chartData.length > 0;
-  const showQuote =
-    !!(data.quote.text ?? "").trim() ||
-    !!(data.quote.author ?? "").trim() ||
-    !!(data.quote.role ?? "").trim();
-  const showPreview = showStats || showChart || showQuote;
-  const previewColumnCount =
-    Number(showStats) + Number(showChart) + Number(showQuote);
+  const openEditChart = (item: ImpactChartItem) => {
+    setFormError(null);
+    setChartErrors({});
+    setEditingChart({ ...item });
+    setChartIsNew(false);
+  };
 
-  const sectionLabelClass =
+  const saveChart = async () => {
+    if (!editingChart) return;
+    const label = (editingChart.label ?? "").trim();
+    const pct = Number.isFinite(editingChart.percentage)
+      ? Number(editingChart.percentage)
+      : 0;
+    const errs: { label?: string; percentage?: string } = {};
+    if (!label) errs.label = "Industry name is required.";
+    if (pct < 0 || pct > 100) errs.percentage = "Percentage must be 0–100.";
+    if (Object.keys(errs).length > 0) {
+      setChartErrors(errs);
+      return;
+    }
+    const item: ImpactChartItem = { ...editingChart, label, percentage: pct };
+    let nextChart: ImpactChartItem[];
+    if (chartIsNew) {
+      if (data.chartData.length >= MAX_CHART_ITEMS) {
+        setFormError(limitMessage(MAX_CHART_ITEMS));
+        return;
+      }
+      nextChart = [...data.chartData, item];
+    } else {
+      nextChart = data.chartData.map((c) => (c.id === item.id ? item : c));
+    }
+    const ok = await persist({ ...data, chartData: nextChart });
+    if (ok) {
+      setEditingChart(null);
+      setChartErrors({});
+    }
+  };
+
+  const removeChart = async () => {
+    if (!deleteChart) return;
+    const nextChart = data.chartData.filter((c) => c.id !== deleteChart.id);
+    setBusy(true);
+    try {
+      const updated = await replaceModule(token, moduleKey, {
+        expected_version: moduleData.version,
+        title:
+          typeof moduleData.title === "string" && moduleData.title.trim()
+            ? moduleData.title
+            : "Our Proven Impact",
+        status:
+          typeof moduleData.status === "string" && moduleData.status
+            ? moduleData.status
+            : "draft",
+        content: {
+          stats: data.stats,
+          chartData: nextChart,
+          quote: data.quote,
+        },
+      });
+      const mod = await ensureModuleAfterMutation(token, moduleKey, updated);
+      onModuleUpdated(mod);
+      setDeleteChart(null);
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        await reloadModule();
+        onError(`${e.message} Reloaded latest version.`);
+      } else {
+        onError(e instanceof Error ? e.message : "Delete failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ────────── quote (testimonial) ──────────
+  const hasQuote = !quoteIsEmpty(data.quote);
+
+  const openAddQuote = () => {
+    if (hasQuote) {
+      setPageError(limitMessage(1));
+      return;
+    }
+    setPageError(null);
+    setFormError(null);
+    setQuoteErrors({});
+    setEditingQuote(emptyQuote());
+    setQuoteIsNew(true);
+  };
+
+  const openEditQuote = () => {
+    setFormError(null);
+    setQuoteErrors({});
+    setEditingQuote({ ...data.quote });
+    setQuoteIsNew(false);
+  };
+
+  const saveQuote = async () => {
+    if (!editingQuote) return;
+    const text = (editingQuote.text ?? "").trim();
+    if (!text) {
+      setQuoteErrors({ text: "Quote text is required." });
+      return;
+    }
+    const next: ImpactQuote = {
+      text,
+      author: (editingQuote.author ?? "").trim(),
+      role: (editingQuote.role ?? "").trim(),
+    };
+    const ok = await persist({ ...data, quote: next });
+    if (ok) {
+      setEditingQuote(null);
+      setQuoteErrors({});
+    }
+  };
+
+  const removeQuote = async () => {
+    setBusy(true);
+    try {
+      const updated = await replaceModule(token, moduleKey, {
+        expected_version: moduleData.version,
+        title:
+          typeof moduleData.title === "string" && moduleData.title.trim()
+            ? moduleData.title
+            : "Our Proven Impact",
+        status:
+          typeof moduleData.status === "string" && moduleData.status
+            ? moduleData.status
+            : "draft",
+        content: {
+          stats: data.stats,
+          chartData: data.chartData,
+          quote: emptyQuote(),
+        },
+      });
+      const mod = await ensureModuleAfterMutation(token, moduleKey, updated);
+      onModuleUpdated(mod);
+      setDeleteQuoteOpen(false);
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        await reloadModule();
+        onError(`${e.message} Reloaded latest version.`);
+      } else {
+        onError(e instanceof Error ? e.message : "Delete failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ────────── render ──────────
+  const sectionHeading =
     "text-[11px] font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]";
-  const columnClass = "min-w-0 space-y-3";
+  const emptyPanel =
+    "neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-6 text-center text-[13px] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)]";
+
+  const atStatsLimit = data.stats.length >= MAX_STATS;
+  const atChartLimit = data.chartData.length >= MAX_CHART_ITEMS;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
-        <ToolbarButton variant="primary" onClick={openForm} disabled={busy}>
-          Add our proven impact
-        </ToolbarButton>
-      </div>
+    <div className="space-y-10">
+      {pageError ? (
+        <p
+          className="text-[13px] text-[var(--foreground-secondary)]"
+          role="status">
+          {pageError}
+        </p>
+      ) : null}
 
-      <div className="flex justify-start">
-        <div className="w-full max-w-5xl space-y-4">
-          {!showPreview ? (
-            <div className={`${panelClass} p-4`}>
-              <p className="text-[13px] leading-relaxed text-[var(--foreground-secondary)]">
-                No impact content loaded yet. Add content with the button
-                above; it is saved to the content API with version checking.
+      {/* ───── Statistics ───── */}
+      <section className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className={sectionHeading}>Statistics</h3>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <ToolbarButton
+              variant="primary"
+              onClick={openAddStat}
+              disabled={busy || atStatsLimit}>
+              Add statistic
+            </ToolbarButton>
+            {atStatsLimit ? (
+              <p
+                className="text-[12px] text-[var(--foreground-secondary)]"
+                role="status">
+                {limitMessage(MAX_STATS)}
               </p>
-            </div>
-          ) : null}
-
-          {showPreview ? (
-            <div
-              className={`${panelClass} box-border p-5 sm:p-6 lg:px-8 lg:py-7`}>
-              <div
-                className={`grid min-w-0 grid-cols-1 gap-8 lg:items-start lg:gap-x-8 lg:gap-y-0 xl:gap-x-10 ${
-                  previewColumnCount === 3
-                    ? "lg:grid-cols-3"
-                    : previewColumnCount === 2
-                      ? "lg:grid-cols-2"
-                      : "lg:grid-cols-1"
-                }`}>
-                {showStats ? (
-                  <section className={columnClass}>
-                    <p className={sectionLabelClass}>Statistics</p>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      {data.stats.map((stat) => (
-                        <div key={stat.id} className={innerTileClass}>
-                          <p className="text-base font-semibold tabular-nums text-[var(--text-heading)] sm:text-lg">
-                            {(stat.value ?? "").trim() || "—"}
-                          </p>
-                          <p className="mt-1 text-[11px] leading-snug text-[var(--foreground-secondary)] sm:text-[12px]">
-                            {(stat.label ?? "").trim() || "—"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {showChart ? (
-                  <section className={columnClass}>
-                    <p className={sectionLabelClass}>Adoption by industry</p>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
-                      {data.chartData.map((row) => (
-                        <div key={row.id} className={innerTileClass}>
-                          <p className="text-[12px] font-medium text-[var(--text-heading)] sm:text-[13px]">
-                            {(row.label ?? "").trim() || "—"}
-                          </p>
-                          <p className="mt-1.5 text-base font-semibold tabular-nums text-[var(--text-heading)] sm:text-lg">
-                            {typeof row.percentage === "number" &&
-                            row.percentage > 0
-                              ? `${row.percentage}%`
-                              : "—"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {showQuote ? (
-                  <section className={columnClass}>
-                    <p className={sectionLabelClass}>Testimonial</p>
-                    <div
-                      className={`${innerTileClass} flex min-h-[7.5rem] flex-col justify-center py-4 min-w-0`}>
-                      <p className="break-words text-[13px] italic leading-relaxed text-[var(--text-heading)] sm:text-[14px]">
-                        {(data.quote.text ?? "").trim()
-                          ? `“${data.quote.text.trim()}”`
-                          : "—"}
-                      </p>
-                      <p className="mt-3 text-[12px] text-[var(--foreground-secondary)]">
-                        {(data.quote.author ?? "").trim() || "—"}
-                        {(data.quote.role ?? "").trim()
-                          ? ` · ${(data.quote.role ?? "").trim()}`
-                          : ""}
-                      </p>
-                    </div>
-                  </section>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
-      </div>
 
+        {data.stats.length === 0 ? (
+          <div className={emptyPanel}>
+            No statistics yet. Add up to {MAX_STATS} cards.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {data.stats.map((stat) => (
+              <ModuleItemCard
+                key={stat.id}
+                title={(stat.label ?? "").trim() || "Untitled stat"}
+                onEdit={() => openEditStat(stat)}
+                onDelete={() => setDeleteStat(stat)}
+                busy={busy}
+                editAriaLabel={`Edit statistic ${stat.label ?? stat.id}`}
+                deleteAriaLabel={`Delete statistic ${stat.label ?? stat.id}`}>
+                <p className="text-2xl font-semibold tabular-nums text-[var(--text-heading)]">
+                  {(stat.value ?? "").trim() || "—"}
+                </p>
+              </ModuleItemCard>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ───── Adoption by industry ───── */}
+      <section className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className={sectionHeading}>Adoption by industry</h3>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <ToolbarButton
+              variant="primary"
+              onClick={openAddChart}
+              disabled={busy || atChartLimit}>
+              Add industry
+            </ToolbarButton>
+            {atChartLimit ? (
+              <p
+                className="text-[12px] text-[var(--foreground-secondary)]"
+                role="status">
+                {limitMessage(MAX_CHART_ITEMS)}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {data.chartData.length === 0 ? (
+          <div className={emptyPanel}>
+            No industries yet. Add up to {MAX_CHART_ITEMS} cards.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {data.chartData.map((item) => (
+              <ModuleItemCard
+                key={item.id}
+                title={(item.label ?? "").trim() || "Untitled industry"}
+                onEdit={() => openEditChart(item)}
+                onDelete={() => setDeleteChart(item)}
+                busy={busy}
+                editAriaLabel={`Edit industry ${item.label ?? item.id}`}
+                deleteAriaLabel={`Delete industry ${item.label ?? item.id}`}>
+                <p className="text-2xl font-semibold tabular-nums text-[var(--text-heading)]">
+                  {Number.isFinite(item.percentage) && item.percentage > 0
+                    ? `${item.percentage}%`
+                    : "—"}
+                </p>
+              </ModuleItemCard>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ───── Testimonial ───── */}
+      <section className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className={sectionHeading}>Testimonial</h3>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <ToolbarButton
+              variant="primary"
+              onClick={openAddQuote}
+              disabled={busy || hasQuote}>
+              Add testimonial
+            </ToolbarButton>
+            {hasQuote ? (
+              <p
+                className="text-[12px] text-[var(--foreground-secondary)]"
+                role="status">
+                Only one testimonial is allowed.
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {!hasQuote ? (
+          <div className={emptyPanel}>No testimonial yet.</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <ModuleItemCard
+              title={(data.quote.author ?? "").trim() || "Testimonial"}
+              label={(data.quote.role ?? "").trim() || undefined}
+              onEdit={openEditQuote}
+              onDelete={() => setDeleteQuoteOpen(true)}
+              busy={busy}
+              editAriaLabel="Edit testimonial"
+              deleteAriaLabel="Delete testimonial">
+              <p className="line-clamp-4 italic">
+                {(data.quote.text ?? "").trim()
+                  ? `“${data.quote.text.trim()}”`
+                  : "—"}
+              </p>
+            </ModuleItemCard>
+          </div>
+        )}
+      </section>
+
+      {/* ───── Stat modal ───── */}
       <Modal
-        open={modalOpen}
-        title="Proven impact"
-        onClose={() => !busy && setModalOpen(false)}>
-        <FormAlert message={formError} />
-        <div className="space-y-10">
-          <div>
-            <h4 className="mb-5 border-b border-solid [border-color:var(--divider-soft)] pb-2 text-sm font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]">
-              Top statistics
-            </h4>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {formData.stats.map((stat, i) => (
-                <Field key={stat.id} label={`${stat.label} value`}>
-                  <input
-                    className={inputClass()}
-                    value={stat.value}
-                    placeholder="e.g. 378%"
-                    onChange={(e) => handleStatChange(i, e.target.value)}
-                  />
-                </Field>
-              ))}
+        open={!!editingStat}
+        title={statIsNew ? "New statistic" : "Edit statistic"}
+        onClose={() => !busy && setEditingStat(null)}>
+        {editingStat ? (
+          <div className="space-y-3">
+            <FormAlert message={formError} />
+            <Field label="Static name *" error={statErrors.label}>
+              <input
+                className={inputClass(!!statErrors.label)}
+                value={editingStat.label}
+                aria-invalid={!!statErrors.label}
+                placeholder="Productivity Increase"
+                onChange={(e) => {
+                  setEditingStat({ ...editingStat, label: e.target.value });
+                  setStatErrors((s) => ({ ...s, label: undefined }));
+                }}
+              />
+            </Field>
+            <Field label="Static value">
+              <input
+                className={inputClass()}
+                value={editingStat.value}
+                placeholder="e.g. 98 or 378%"
+                onChange={(e) =>
+                  setEditingStat({ ...editingStat, value: e.target.value })
+                }
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <ToolbarButton onClick={() => setEditingStat(null)} disabled={busy}>
+                Cancel
+              </ToolbarButton>
+              <ToolbarButton
+                variant="primary"
+                onClick={() => void saveStat()}
+                disabled={busy}>
+                {busy ? "Saving…" : statIsNew ? "Create" : "Save"}
+              </ToolbarButton>
             </div>
           </div>
-
-          <div>
-            <h4 className="mb-5 border-b border-solid [border-color:var(--divider-soft)] pb-2 text-sm font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]">
-              AI adoption ROI (%)
-            </h4>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-              {formData.chartData.map((chart, i) => (
-                <Field key={chart.id} label={chart.label}>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    className={inputClass()}
-                    value={chart.percentage || ""}
-                    placeholder="e.g. 94"
-                    onChange={(e) =>
-                      handleChartChange(i, Number(e.target.value) || 0)
-                    }
-                  />
-                </Field>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="mb-5 border-b border-solid [border-color:var(--divider-soft)] pb-2 text-sm font-semibold uppercase tracking-wider text-[var(--foreground-secondary)]">
-              Testimonial quote
-            </h4>
-            <div className="space-y-5">
-              <Field label="Quote text">
-                <textarea
-                  className={`${inputClass()} min-h-[100px] py-3`}
-                  value={formData.quote.text}
-                  placeholder="NyraAI reduced reporting cycles…"
-                  onChange={(e) => handleQuoteChange("text", e.target.value)}
-                />
-              </Field>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Field label="Author name">
-                  <input
-                    className={inputClass()}
-                    value={formData.quote.author}
-                    placeholder="e.g. Mira Singh"
-                    onChange={(e) =>
-                      handleQuoteChange("author", e.target.value)
-                    }
-                  />
-                </Field>
-                <Field label="Role / company">
-                  <input
-                    className={inputClass()}
-                    value={formData.quote.role}
-                    placeholder="e.g. COO at NovaGrid Systems"
-                    onChange={(e) => handleQuoteChange("role", e.target.value)}
-                  />
-                </Field>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 flex justify-end gap-3 border-t border-solid [border-color:var(--divider-soft)] pt-6">
-            <ToolbarButton onClick={() => setModalOpen(false)} disabled={busy}>
-              Cancel
-            </ToolbarButton>
-            <ToolbarButton variant="primary" onClick={() => void save()} disabled={busy}>
-              {busy ? "Saving…" : "Save"}
-            </ToolbarButton>
-          </div>
-        </div>
+        ) : null}
       </Modal>
+
+      {/* ───── Chart modal ───── */}
+      <Modal
+        open={!!editingChart}
+        title={chartIsNew ? "New industry" : "Edit industry"}
+        onClose={() => !busy && setEditingChart(null)}>
+        {editingChart ? (
+          <div className="space-y-3">
+            <FormAlert message={formError} />
+            <Field label="Industry name *" error={chartErrors.label}>
+              <input
+                className={inputClass(!!chartErrors.label)}
+                value={editingChart.label}
+                aria-invalid={!!chartErrors.label}
+                placeholder="e.g. Fintech"
+                onChange={(e) => {
+                  setEditingChart({ ...editingChart, label: e.target.value });
+                  setChartErrors((s) => ({ ...s, label: undefined }));
+                }}
+              />
+            </Field>
+            <Field label="Percentage (0–100)" error={chartErrors.percentage}>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className={inputClass(!!chartErrors.percentage)}
+                value={editingChart.percentage || ""}
+                aria-invalid={!!chartErrors.percentage}
+                placeholder="e.g. 94"
+                onChange={(e) => {
+                  setEditingChart({
+                    ...editingChart,
+                    percentage: Number(e.target.value) || 0,
+                  });
+                  setChartErrors((s) => ({ ...s, percentage: undefined }));
+                }}
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <ToolbarButton onClick={() => setEditingChart(null)} disabled={busy}>
+                Cancel
+              </ToolbarButton>
+              <ToolbarButton
+                variant="primary"
+                onClick={() => void saveChart()}
+                disabled={busy}>
+                {busy ? "Saving…" : chartIsNew ? "Create" : "Save"}
+              </ToolbarButton>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      {/* ───── Quote modal ───── */}
+      <Modal
+        open={!!editingQuote}
+        title={quoteIsNew ? "New testimonial" : "Edit testimonial"}
+        onClose={() => !busy && setEditingQuote(null)}>
+        {editingQuote ? (
+          <div className="space-y-3">
+            <FormAlert message={formError} />
+            <Field label="Quote text *" error={quoteErrors.text}>
+              <textarea
+                className={`${inputClass(!!quoteErrors.text)} min-h-[100px] py-3`}
+                value={editingQuote.text}
+                aria-invalid={!!quoteErrors.text}
+                placeholder="NyraAI reduced reporting cycles…"
+                onChange={(e) => {
+                  setEditingQuote({ ...editingQuote, text: e.target.value });
+                  setQuoteErrors((s) => ({ ...s, text: undefined }));
+                }}
+              />
+            </Field>
+            <Field label="Author name">
+              <input
+                className={inputClass()}
+                value={editingQuote.author}
+                placeholder="e.g. Mira Singh"
+                onChange={(e) =>
+                  setEditingQuote({ ...editingQuote, author: e.target.value })
+                }
+              />
+            </Field>
+            <Field label="Role / company">
+              <input
+                className={inputClass()}
+                value={editingQuote.role}
+                placeholder="e.g. COO at NovaGrid Systems"
+                onChange={(e) =>
+                  setEditingQuote({ ...editingQuote, role: e.target.value })
+                }
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <ToolbarButton onClick={() => setEditingQuote(null)} disabled={busy}>
+                Cancel
+              </ToolbarButton>
+              <ToolbarButton
+                variant="primary"
+                onClick={() => void saveQuote()}
+                disabled={busy}>
+                {busy ? "Saving…" : quoteIsNew ? "Create" : "Save"}
+              </ToolbarButton>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      {/* ───── Delete confirms ───── */}
+      <ConfirmDialog
+        open={!!deleteStat}
+        title="Delete statistic?"
+        message={
+          deleteStat
+            ? `Remove “${deleteStat.label || deleteStat.id}”? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        busy={busy}
+        onCancel={() => setDeleteStat(null)}
+        onConfirm={() => void removeStat()}
+      />
+      <ConfirmDialog
+        open={!!deleteChart}
+        title="Delete industry?"
+        message={
+          deleteChart
+            ? `Remove “${deleteChart.label || deleteChart.id}”? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        busy={busy}
+        onCancel={() => setDeleteChart(null)}
+        onConfirm={() => void removeChart()}
+      />
+      <ConfirmDialog
+        open={deleteQuoteOpen}
+        title="Delete testimonial?"
+        message="Remove the testimonial? This cannot be undone."
+        confirmLabel="Delete"
+        busy={busy}
+        onCancel={() => setDeleteQuoteOpen(false)}
+        onConfirm={() => void removeQuote()}
+      />
     </div>
   );
 }
