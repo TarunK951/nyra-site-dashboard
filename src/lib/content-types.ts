@@ -18,6 +18,8 @@ export type BlogPost = {
   excerpt?: string;
   publishedAt?: string;
   heroImage?: string;
+  /** Optional gallery; first entry mirrors `heroImage` for backwards compatibility. */
+  heroImages?: string[];
   author?: { name?: string; avatar?: string };
   sections?: BlogSection[];
   status?: string;
@@ -45,7 +47,14 @@ export type TeamMember = {
   role?: string;
   tagline?: string;
   image?: string;
-  social?: { linkedin?: string; [key: string]: unknown };
+  email?: string;
+  social?: {
+    linkedin?: string;
+    github?: string;
+    instagram?: string;
+    facebook?: string;
+    [key: string]: unknown;
+  };
   visible?: boolean;
 };
 

@@ -635,6 +635,41 @@ export async function uploadTestimonialVideoFile(
 }
 
 /**
+ * Same-origin dashboard route: POST /api/cms/upload-image (multipart `file`, optional `folder`).
+ * Uses Vercel Blob when BLOB_READ_WRITE_TOKEN is set, or CMS_IMAGE_UPLOAD_* to another backend.
+ */
+export async function uploadImageViaDashboardBlobRoute(
+  token: string,
+  file: File,
+  folder?: string,
+  signal?: AbortSignal,
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (folder && folder.trim()) formData.append("folder", folder.trim());
+  const url = resolveMultipartFetchUrl("/api/cms/upload-image");
+  const res = await fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    signal,
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const body: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(extractMessage(body, "Image upload failed"));
+  }
+  if (!body || typeof body !== "object") {
+    throw new Error("Unexpected response from image upload");
+  }
+  const u = (body as Record<string, unknown>).url;
+  if (typeof u !== "string" || !u.trim()) {
+    throw new Error("Image upload did not return a URL");
+  }
+  return { url: u.trim() };
+}
+
+/**
  * Same-origin dashboard route: POST /api/cms/upload-video (multipart `file`).
  * Uses Vercel Blob when BLOB_READ_WRITE_TOKEN is set, or CMS_VIDEO_UPLOAD_* to another backend.
  */
