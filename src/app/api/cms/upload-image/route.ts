@@ -1,5 +1,9 @@
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getBlobReadWriteToken,
+  imageUploadNotConfiguredMessage,
+} from "@/lib/cms-upload-env";
 import { extractMessage } from "@/lib/content-api";
 import { getApiBase } from "@/lib/config";
 
@@ -127,13 +131,10 @@ export async function POST(req: NextRequest) {
     return forwardToBackend(`${base}${path}`);
   }
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  const blobToken = getBlobReadWriteToken();
   if (!blobToken) {
     return NextResponse.json(
-      {
-        error:
-          "Image upload is not configured. Set CMS_IMAGE_UPLOAD_URL or CMS_IMAGE_UPLOAD_PATH (Nyra API or other backend that returns a JSON `url`), or BLOB_READ_WRITE_TOKEN for Vercel Blob.",
-      },
+      { error: imageUploadNotConfiguredMessage() },
       { status: 503 },
     );
   }
