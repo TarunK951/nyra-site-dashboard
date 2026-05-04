@@ -22,6 +22,13 @@ const ALLOWED_IMAGE_TYPES = new Set([
 /** Mirrors the backend's POST /api/content/uploads/images limit. */
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
+/**
+ * When no CMS_IMAGE_UPLOAD_* or Blob token is set, proxy to the Nyra content API
+ * on `NEXT_PUBLIC_API_BASE_URL` (default https://server.nyraai.io). Same path as
+ * CMS_IMAGE_UPLOAD_PATH in the integration guide — no Vercel env required for that setup.
+ */
+const DEFAULT_NYRA_IMAGE_UPLOAD_PATH = "/api/content/uploads/images";
+
 function parseUploadUrlFromBody(body: unknown): string | null {
   if (!body || typeof body !== "object") return null;
   const o = body as Record<string, unknown>;
@@ -87,7 +94,11 @@ export async function POST(req: NextRequest) {
   const folder = sanitizeFolder(form.get("folder"));
 
   const fullUploadUrl = process.env.CMS_IMAGE_UPLOAD_URL?.trim();
-  const uploadPath = process.env.CMS_IMAGE_UPLOAD_PATH?.trim();
+  const explicitPath = process.env.CMS_IMAGE_UPLOAD_PATH?.trim();
+  const blobToken = getBlobReadWriteToken();
+  const uploadPath =
+    explicitPath ||
+    (!fullUploadUrl && !blobToken ? DEFAULT_NYRA_IMAGE_UPLOAD_PATH : undefined);
   const fieldName = process.env.CMS_IMAGE_UPLOAD_FIELD?.trim() || "file";
 
   async function forwardToBackend(target: string): Promise<NextResponse> {
@@ -131,7 +142,6 @@ export async function POST(req: NextRequest) {
     return forwardToBackend(`${base}${path}`);
   }
 
-  const blobToken = getBlobReadWriteToken();
   if (!blobToken) {
     return NextResponse.json(
       { error: imageUploadNotConfiguredMessage() },
