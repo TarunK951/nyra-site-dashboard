@@ -636,7 +636,7 @@ export async function uploadTestimonialVideoFile(
 
 /**
  * Same-origin dashboard route: POST /api/cms/upload-image (multipart `file`, optional `folder`).
- * Uses Vercel Blob when BLOB_READ_WRITE_TOKEN is set, or CMS_IMAGE_UPLOAD_* to another backend.
+ * Uses Vercel Blob when BLOB_READ_WRITE_TOKEN (or CMS_BLOB_READ_WRITE_TOKEN / VERCEL_BLOB_READ_WRITE_TOKEN) is set, or CMS_IMAGE_UPLOAD_* to another backend.
  */
 export async function uploadImageViaDashboardBlobRoute(
   token: string,
@@ -671,7 +671,7 @@ export async function uploadImageViaDashboardBlobRoute(
 
 /**
  * Same-origin dashboard route: POST /api/cms/upload-video (multipart `file`).
- * Uses Vercel Blob when BLOB_READ_WRITE_TOKEN is set, or CMS_VIDEO_UPLOAD_* to another backend.
+ * Uses Vercel Blob when BLOB_READ_WRITE_TOKEN (or CMS_BLOB_READ_WRITE_TOKEN / VERCEL_BLOB_READ_WRITE_TOKEN) is set, or CMS_VIDEO_UPLOAD_* to another backend.
  */
 export async function uploadVideoViaDashboardBlobRoute(
   token: string,

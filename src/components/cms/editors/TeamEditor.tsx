@@ -10,7 +10,13 @@ import {
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
 import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
 import { TeamMemberCardPreview } from "@/components/cms/TeamMemberCardPreview";
-import { newId, teamMembers, type TeamMember } from "@/lib/content-types";
+import {
+  newId,
+  normalizeTeamMemberHashtag,
+  teamMemberHashtagLabel,
+  teamMembers,
+  type TeamMember,
+} from "@/lib/content-types";
 import {
   Field,
   FormAlert,
@@ -24,12 +30,23 @@ import { useCallback, useRef, useState } from "react";
 
 const COLLECTION = "members";
 
-function emptyItem(): TeamMember {
+function nextMemberIndex(members: TeamMember[]): number {
+  let max = -1;
+  for (const m of members) {
+    const n = m.index;
+    if (typeof n === "number" && Number.isFinite(n)) max = Math.max(max, n);
+  }
+  return max + 1;
+}
+
+function emptyItem(members: TeamMember[]): TeamMember {
   return {
     id: newId("team"),
+    index: nextMemberIndex(members),
     name: "",
     role: "",
     tagline: "",
+    hashtag: "",
     image: "",
     email: "",
     social: { linkedin: "", github: "", instagram: "", facebook: "" },
@@ -114,8 +131,16 @@ export function TeamEditor({
       return;
     }
     const isUpdate = items.some((x) => x.id === editing.id);
+    const idxRaw = editing.index;
+    const index =
+      typeof idxRaw === "number" && Number.isFinite(idxRaw)
+        ? Math.trunc(idxRaw)
+        : undefined;
+    const hashtag = normalizeTeamMemberHashtag(editing.hashtag);
     const item: TeamMember = {
       id: editing.id,
+      ...(index !== undefined ? { index } : {}),
+      ...(hashtag ? { hashtag } : {}),
       name,
       role: editing.role,
       tagline: editing.tagline,
@@ -203,7 +228,7 @@ export function TeamEditor({
         variant="primary"
         onClick={() => {
           setPreview(null);
-          setEditing(emptyItem());
+          setEditing(emptyItem(items));
           setFieldErrors({});
           setFormError(null);
           setModalOpen(true);
@@ -220,6 +245,7 @@ export function TeamEditor({
           {items.map((row) => (
             <ModuleItemCard
               key={row.id}
+              label={teamMemberHashtagLabel(row)}
               title={row.name ?? row.id}
               onView={() => setPreview(row)}
               onPrimaryClick={() => setPreview(row)}
@@ -277,6 +303,35 @@ export function TeamEditor({
                 }}
               />
             </Field>
+            <Field label="Order (index)">
+              <input
+                type="number"
+                className={inputClass()}
+                value={
+                  typeof editing.index === "number" &&
+                  Number.isFinite(editing.index)
+                    ? editing.index
+                    : ""
+                }
+                step={1}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "" || v === "-") {
+                    setEditing({ ...editing, index: undefined });
+                    return;
+                  }
+                  const n = Number(v);
+                  setEditing({
+                    ...editing,
+                    index: Number.isFinite(n) ? Math.trunc(n) : undefined,
+                  });
+                }}
+              />
+              <p className="mt-1.5 text-[12px] text-[var(--foreground-secondary)]">
+                Lower numbers appear first. Leave empty to sort this member
+                after everyone who has an index.
+              </p>
+            </Field>
             <Field label="Role">
               <input
                 className={inputClass()}
@@ -285,6 +340,20 @@ export function TeamEditor({
                   setEditing({ ...editing, role: e.target.value })
                 }
               />
+            </Field>
+            <Field label="Hashtag">
+              <input
+                className={inputClass()}
+                value={editing.hashtag ?? ""}
+                placeholder="e.g. CEO or #FOUNDER"
+                onChange={(e) =>
+                  setEditing({ ...editing, hashtag: e.target.value })
+                }
+              />
+              <p className="mt-1.5 text-[12px] text-[var(--foreground-secondary)]">
+                Shown on the member card. Saved as uppercase with #. Leave empty
+                to derive from role (same as before).
+              </p>
             </Field>
             <Field label="Tagline">
               <input

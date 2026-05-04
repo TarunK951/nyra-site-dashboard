@@ -43,6 +43,10 @@ export type TestimonialItem = {
 
 export type TeamMember = {
   id: string;
+  /** Display order when listing team members (lower first). Omitted values sort last. */
+  index?: number;
+  /** Card hashtag (e.g. #CEO). Normalized on save; when empty, UI derives from role. */
+  hashtag?: string;
   name?: string;
   role?: string;
   tagline?: string;
@@ -148,8 +152,43 @@ export function testimonialItems(mod: ContentModulePayload): TestimonialItem[] {
   return getCollectionItems<TestimonialItem>(mod, "items");
 }
 
+/** Normalize hashtag input for storage / display (leading #, A–Z, 0–9, _). */
+export function normalizeTeamMemberHashtag(
+  raw: string | undefined,
+): string | undefined {
+  const t = (raw ?? "").trim();
+  if (!t) return undefined;
+  const body = t
+    .replace(/^#+/, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "");
+  if (!body) return undefined;
+  return `#${body.slice(0, 24)}`;
+}
+
+/** Hashtag shown on team marketing cards and dashboard cards. */
+export function teamMemberHashtagLabel(m: TeamMember): string {
+  const fromField = normalizeTeamMemberHashtag(m.hashtag);
+  if (fromField) return fromField;
+  const role = (m.role ?? "").trim();
+  const r = role.toUpperCase().replace(/[^A-Z0-9]+/g, "");
+  if (!r) return "#TEAM";
+  return `#${r.slice(0, 14)}`;
+}
+
+function sortKeyIndex(index: unknown): number {
+  if (typeof index === "number" && Number.isFinite(index)) return index;
+  return Number.POSITIVE_INFINITY;
+}
+
 export function teamMembers(mod: ContentModulePayload): TeamMember[] {
-  return getCollectionItems<TeamMember>(mod, "members");
+  const raw = getCollectionItems<TeamMember>(mod, "members");
+  return [...raw].sort((a, b) => {
+    const da = sortKeyIndex(a.index);
+    const db = sortKeyIndex(b.index);
+    if (da !== db) return da - db;
+    return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+  });
 }
 
 export function faqItems(mod: ContentModulePayload): FaqItem[] {
