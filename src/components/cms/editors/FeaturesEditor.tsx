@@ -5,6 +5,7 @@ import {
   createCollectionItem,
   deleteCollectionItem,
   updateCollectionItem,
+  uploadImageViaDashboardBlobRoute,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
 import { FeatureMarketingPreview } from "@/components/cms/FeatureMarketingPreview";
@@ -19,7 +20,7 @@ import {
   inputClass,
 } from "../shared";
 import type { EditorProps } from "../editor-types";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 const COLLECTION = "items";
 
@@ -51,13 +52,46 @@ export function FeaturesEditor({
   const [fieldErrors, setFieldErrors] = useState<{ title?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [preview, setPreview] = useState<FeatureItem | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
 
   const closeModal = useCallback(() => {
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
+    setUploading(false);
     setModalOpen(false);
     setEditing(null);
     setFieldErrors({});
     setFormError(null);
   }, []);
+
+  const handleImageFileSelected = useCallback(
+    async (file: File) => {
+      if (!editing) return;
+      uploadAbortRef.current?.abort();
+      const ac = new AbortController();
+      uploadAbortRef.current = ac;
+      setUploading(true);
+      setFormError(null);
+      try {
+        const { url } = await uploadImageViaDashboardBlobRoute(
+          token,
+          file,
+          "features",
+          ac.signal,
+        );
+        setEditing((cur) => (cur ? { ...cur, image: url } : cur));
+      } catch (e) {
+        if ((e as { name?: string })?.name === "AbortError") return;
+        setFormError(e instanceof Error ? e.message : "Image upload failed.");
+      } finally {
+        if (uploadAbortRef.current === ac) uploadAbortRef.current = null;
+        setUploading(false);
+      }
+    },
+    [editing, token],
+  );
 
   const save = useCallback(async () => {
     if (!editing) return;
@@ -256,14 +290,57 @@ export function FeaturesEditor({
                 }
               />
             </Field>
-            <Field label="Image URL">
-              <input
-                className={inputClass()}
-                value={editing.image ?? ""}
-                onChange={(e) =>
-                  setEditing({ ...editing, image: e.target.value })
-                }
-              />
+            <Field label="Image">
+              <div className="space-y-2">
+                <input
+                  className={inputClass()}
+                  placeholder="Paste image URL or upload from device"
+                  value={editing.image ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, image: e.target.value })
+                  }
+                />
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml,image/*"
+                  className="sr-only"
+                  tabIndex={-1}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    e.target.value = "";
+                    if (!f) return;
+                    void handleImageFileSelected(f);
+                  }}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <ToolbarButton
+                    onClick={() => imageFileInputRef.current?.click()}
+                    disabled={busy || uploading}>
+                    {uploading ? "Uploading…" : "Upload from device"}
+                  </ToolbarButton>
+                  {editing.image ? (
+                    <ToolbarButton
+                      onClick={() => setEditing({ ...editing, image: "" })}
+                      disabled={busy || uploading}>
+                      Clear
+                    </ToolbarButton>
+                  ) : null}
+                </div>
+                {editing.image ? (
+                  <div className="mt-1 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={editing.image}
+                      alt="Preview"
+                      className="h-16 w-16 rounded-md object-cover [border:1px_solid_var(--divider-soft)]"
+                    />
+                    <span className="truncate text-[12px] text-[var(--foreground-secondary)]">
+                      {editing.image}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </Field>
             <label className="flex items-center gap-2 text-[13px]">
               <input
@@ -279,8 +356,11 @@ export function FeaturesEditor({
               <ToolbarButton onClick={closeModal} disabled={busy}>
                 Cancel
               </ToolbarButton>
-              <ToolbarButton variant="primary" onClick={() => void save()} disabled={busy}>
-                {busy ? "Saving…" : "Save"}
+              <ToolbarButton
+                variant="primary"
+                onClick={() => void save()}
+                disabled={busy || uploading}>
+                {busy ? "Saving…" : uploading ? "Uploading…" : "Save"}
               </ToolbarButton>
             </div>
           </div>

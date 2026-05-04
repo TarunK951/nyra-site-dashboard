@@ -5,6 +5,7 @@ import {
   createCollectionItem,
   deleteCollectionItem,
   updateCollectionItem,
+  uploadImageViaDashboardBlobRoute,
 } from "@/lib/content-api";
 import { ensureModuleAfterMutation } from "@/lib/cms-refresh";
 import { ModuleItemCard } from "@/components/cms/ModuleItemCard";
@@ -19,7 +20,7 @@ import {
   inputClass,
 } from "../shared";
 import type { EditorProps } from "../editor-types";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 const COLLECTION = "members";
 
@@ -30,10 +31,13 @@ function emptyItem(): TeamMember {
     role: "",
     tagline: "",
     image: "",
-    social: { linkedin: "" },
+    email: "",
+    social: { linkedin: "", github: "", instagram: "", facebook: "" },
     visible: true,
   };
 }
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function TeamEditor({
   token,
@@ -48,22 +52,64 @@ export function TeamEditor({
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    email?: string;
+  }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [preview, setPreview] = useState<TeamMember | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
 
   const closeModal = useCallback(() => {
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
+    setUploading(false);
     setModalOpen(false);
     setEditing(null);
     setFieldErrors({});
     setFormError(null);
   }, []);
 
+  const handleImageFileSelected = useCallback(
+    async (file: File) => {
+      if (!editing) return;
+      uploadAbortRef.current?.abort();
+      const ac = new AbortController();
+      uploadAbortRef.current = ac;
+      setUploading(true);
+      setFormError(null);
+      try {
+        const { url } = await uploadImageViaDashboardBlobRoute(
+          token,
+          file,
+          "team",
+          ac.signal,
+        );
+        setEditing((cur) => (cur ? { ...cur, image: url } : cur));
+      } catch (e) {
+        if ((e as { name?: string })?.name === "AbortError") return;
+        setFormError(e instanceof Error ? e.message : "Image upload failed.");
+      } finally {
+        if (uploadAbortRef.current === ac) uploadAbortRef.current = null;
+        setUploading(false);
+      }
+    },
+    [editing, token],
+  );
+
   const save = useCallback(async () => {
     if (!editing) return;
     const name = (editing.name ?? "").trim();
-    if (!name) {
-      setFieldErrors({ name: "Name is required." });
+    const email = (editing.email ?? "").trim();
+    const errs: { name?: string; email?: string } = {};
+    if (!name) errs.name = "Name is required.";
+    if (email && !EMAIL_REGEX.test(email)) {
+      errs.email = "Enter a valid email address.";
+    }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       setFormError(null);
       return;
     }
@@ -74,6 +120,7 @@ export function TeamEditor({
       role: editing.role,
       tagline: editing.tagline,
       image: editing.image,
+      email: email || undefined,
       social: editing.social,
       visible: editing.visible,
     };
@@ -248,25 +295,132 @@ export function TeamEditor({
                 }
               />
             </Field>
-            <Field label="Image URL">
+            <Field label="Image">
+              <div className="space-y-2">
+                <input
+                  className={inputClass()}
+                  placeholder="Paste image URL or upload from device"
+                  value={editing.image ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, image: e.target.value })
+                  }
+                />
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml,image/*"
+                  className="sr-only"
+                  tabIndex={-1}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    e.target.value = "";
+                    if (!f) return;
+                    void handleImageFileSelected(f);
+                  }}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <ToolbarButton
+                    onClick={() => imageFileInputRef.current?.click()}
+                    disabled={busy || uploading}>
+                    {uploading ? "Uploading…" : "Upload from device"}
+                  </ToolbarButton>
+                  {editing.image ? (
+                    <ToolbarButton
+                      onClick={() =>
+                        setEditing({ ...editing, image: "" })
+                      }
+                      disabled={busy || uploading}>
+                      Clear
+                    </ToolbarButton>
+                  ) : null}
+                </div>
+                {editing.image ? (
+                  <div className="mt-1 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={editing.image}
+                      alt="Preview"
+                      className="h-16 w-16 rounded-md object-cover [border:1px_solid_var(--divider-soft)]"
+                    />
+                    <span className="truncate text-[12px] text-[var(--foreground-secondary)]">
+                      {editing.image}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            </Field>
+            <Field label="Email" error={fieldErrors.email}>
               <input
-                className={inputClass()}
-                value={editing.image ?? ""}
-                onChange={(e) =>
-                  setEditing({ ...editing, image: e.target.value })
-                }
+                type="email"
+                className={inputClass(!!fieldErrors.email)}
+                value={editing.email ?? ""}
+                aria-invalid={!!fieldErrors.email}
+                placeholder="name@example.com"
+                onChange={(e) => {
+                  setEditing({ ...editing, email: e.target.value });
+                  setFieldErrors((f) => ({ ...f, email: undefined }));
+                }}
               />
             </Field>
             <Field label="LinkedIn URL">
               <input
                 className={inputClass()}
                 value={editing.social?.linkedin ?? ""}
+                placeholder="https://linkedin.com/in/…"
                 onChange={(e) =>
                   setEditing({
                     ...editing,
                     social: {
                       ...editing.social,
                       linkedin: e.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="GitHub URL">
+              <input
+                className={inputClass()}
+                value={editing.social?.github ?? ""}
+                placeholder="https://github.com/…"
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    social: {
+                      ...editing.social,
+                      github: e.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="Instagram URL">
+              <input
+                className={inputClass()}
+                value={editing.social?.instagram ?? ""}
+                placeholder="https://instagram.com/…"
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    social: {
+                      ...editing.social,
+                      instagram: e.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="Facebook URL">
+              <input
+                className={inputClass()}
+                value={editing.social?.facebook ?? ""}
+                placeholder="https://facebook.com/…"
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    social: {
+                      ...editing.social,
+                      facebook: e.target.value,
                     },
                   })
                 }
@@ -286,8 +440,11 @@ export function TeamEditor({
               <ToolbarButton onClick={closeModal} disabled={busy}>
                 Cancel
               </ToolbarButton>
-              <ToolbarButton variant="primary" onClick={() => void save()} disabled={busy}>
-                {busy ? "Saving…" : "Save"}
+              <ToolbarButton
+                variant="primary"
+                onClick={() => void save()}
+                disabled={busy || uploading}>
+                {busy ? "Saving…" : uploading ? "Uploading…" : "Save"}
               </ToolbarButton>
             </div>
           </div>
