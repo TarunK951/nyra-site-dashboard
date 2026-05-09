@@ -92,6 +92,20 @@ const IconProvenImpact = () => (
     <line x1="2" y1="14" x2="14" y2="14" />
   </svg>
 );
+const IconSignOut = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" />
+    <polyline points="10,11 14,8 10,5" />
+    <line x1="14" y1="8" x2="6" y2="8" />
+  </svg>
+);
+const IconExternalLink = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9" />
+    <polyline points="10,2 14,2 14,6" />
+    <line x1="14" y1="2" x2="8" y2="8" />
+  </svg>
+);
 
 const MODULE_ICONS: Record<ModuleKey, ReactNode> = {
   blogs: <IconBlogs />,
@@ -183,6 +197,11 @@ export function NyraDashboard() {
   );
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    setSidebarCollapsed(window.innerWidth < 1024);
+  }, []);
+
   const [authReady, setAuthReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -453,7 +472,7 @@ export function NyraDashboard() {
   return (
     <div className="nyra-shell-bg flex h-svh max-h-svh min-h-0 w-full overflow-hidden bg-[var(--background)]">
       <aside
-        className={`flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-solid [border-color:var(--divider-soft)] bg-[var(--background)] transition-[width] duration-300 ease-out ${
+        className={`hidden md:flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-solid [border-color:var(--divider-soft)] bg-[var(--background)] transition-[width] duration-300 ease-out ${
           sidebarCollapsed
             ? "w-[var(--sidebar-collapsed)] min-w-[var(--sidebar-collapsed)]"
             : "w-[var(--sidebar-expanded)] min-w-[var(--sidebar-expanded)]"
@@ -544,11 +563,9 @@ export function NyraDashboard() {
               sidebarCollapsed ? "px-0" : "px-3"
             }`}>
             {!sidebarCollapsed && <span>Sign out</span>}
-            {sidebarCollapsed && (
-              <span className="text-sm" aria-hidden>
-                ⎋
-              </span>
-            )}
+            <span aria-hidden className={sidebarCollapsed ? "" : "ml-auto opacity-60"}>
+              <IconSignOut />
+            </span>
           </button>
           <Link
             href="https://nyraai-website.vercel.app"
@@ -559,24 +576,31 @@ export function NyraDashboard() {
               sidebarCollapsed ? "px-0" : "px-3"
             }`}>
             {!sidebarCollapsed && <span>Marketing site</span>}
-            {sidebarCollapsed && (
-              <span className="text-sm" aria-hidden>
-                ↗
-              </span>
-            )}
-            {!sidebarCollapsed && <span aria-hidden>↗</span>}
+            <span aria-hidden className={sidebarCollapsed ? "" : "ml-auto opacity-60"}>
+              <IconExternalLink />
+            </span>
           </Link>
         </div>
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex min-h-[var(--shell-header-min-h)] shrink-0 flex-col justify-center border-b border-solid [border-color:var(--divider-soft)] bg-[var(--background)] py-3 ps-5 pe-5 sm:ps-6 sm:pe-6 md:ps-8 md:pe-8">
-          <div className="flex w-full min-w-0 flex-row items-center justify-end">
-            <ThemeToggle />
+          <div className="flex w-full min-w-0 flex-row items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
+              <div className="relative h-7 w-11 shrink-0">
+                <Image src="/nyraai-logo.png" alt="" width={96} height={40} className="h-7 w-11 object-contain object-left" priority aria-hidden />
+              </div>
+              <p className="truncate text-[13px] font-semibold tracking-tight text-[var(--text-heading)]">
+                {nav.find((n) => n.id === active)?.label ?? "Dashboard"}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 
-        <main className="dashboard-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain p-5 sm:p-6 md:p-8">
+        <main className="dashboard-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain p-5 pb-[calc(var(--mobile-nav-h)+1.25rem)] sm:p-6 sm:pb-[calc(var(--mobile-nav-h)+1.5rem)] md:p-8 md:pb-8">
 
           {error && (
             <div
@@ -732,6 +756,41 @@ export function NyraDashboard() {
             </section>
           )}
         </main>
+
+        {/* Mobile / tablet bottom nav — hidden on md+ where sidebar takes over */}
+        <nav
+          className="mobile-nav-bar flex md:hidden h-[var(--mobile-nav-h)] items-stretch"
+          aria-label="Primary navigation">
+          {nav.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={active === item.id ? "page" : undefined}
+              onClick={() => setSection(item.id)}
+              className={`flex flex-1 flex-col items-center justify-center gap-1 px-1 transition-colors ${
+                active === item.id
+                  ? "bottom-nav-active"
+                  : "text-[var(--foreground-secondary)] hover:text-[var(--text-heading)]"
+              }`}>
+              <span className="flex h-5 w-5 items-center justify-center" aria-hidden>
+                {item.icon}
+              </span>
+              <span className="text-[10px] font-medium leading-none truncate max-w-[3.5rem]">
+                {item.label}
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex flex-1 flex-col items-center justify-center gap-1 px-1 text-[var(--foreground-secondary)] transition-colors hover:text-[var(--text-heading)]"
+            aria-label="Sign out">
+            <span className="flex h-5 w-5 items-center justify-center" aria-hidden>
+              <IconSignOut />
+            </span>
+            <span className="text-[10px] font-medium leading-none">Sign out</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

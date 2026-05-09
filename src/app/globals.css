@@ -383,3 +383,48 @@ h4 {
 [role="alertdialog"] button {
   box-shadow: none !important;
 }
+
+/* ─── Mobile / responsive additions ─────────────────────────────────────────── */
+
+:root {
+  /* Height of the fixed bottom navigation bar on mobile viewports.
+     Components that need bottom padding (e.g. main scroll areas) should
+     reference this variable so content is never obscured by the bar. */
+  --mobile-nav-h: 4.25rem;
+}
+
+/* Active tab in the bottom navigation bar.
+   Mirrors .sidebar-nav-active but omits the left inset border accent
+   that only makes sense in a vertical sidebar. */
+.bottom-nav-active {
+  background: color-mix(in srgb, var(--text-body) 8%, var(--surface));
+  box-shadow:
+    inset 3px 3px 8px rgba(0, 0, 0, 0.06),
+    inset -2px -2px 8px rgba(255, 255, 255, 0.65);
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .bottom-nav-active {
+  box-shadow:
+    inset 3px 3px 10px rgba(0, 0, 0, 0.4),
+    inset -2px -2px 8px rgba(255, 255, 255, 0.03);
+}
+
+/* Fixed bottom navigation bar container. */
+.mobile-nav-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--background);
+  border-top: 1px solid var(--divider-soft);
+  /* Respect the iPhone home-indicator safe area */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .mobile-nav-bar {
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+}
