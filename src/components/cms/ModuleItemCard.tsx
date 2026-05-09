@@ -38,17 +38,17 @@ export function ModuleItemCard({
   onUnpublish,
   onPublish,
   isPublished,
+  publishedLabel = "Published",
+  unpublishedLabel = "Draft",
   busy,
   viewAriaLabel,
   editAriaLabel,
   deleteAriaLabel,
   unpublishAriaLabel,
   publishAriaLabel,
-  /** Clicking the header/body (not action buttons) runs this — e.g. open the same preview as View. */
   onPrimaryClick,
 }: {
   title: ReactNode;
-  /** Small uppercase line above the title (e.g. category, step number). */
   label?: ReactNode;
   children?: ReactNode;
   onView?: () => void;
@@ -57,6 +57,8 @@ export function ModuleItemCard({
   onUnpublish?: () => void;
   onPublish?: () => void;
   isPublished?: boolean;
+  publishedLabel?: string;
+  unpublishedLabel?: string;
   busy: boolean;
   viewAriaLabel?: string;
   editAriaLabel: string;
@@ -65,6 +67,9 @@ export function ModuleItemCard({
   publishAriaLabel?: string;
   onPrimaryClick?: () => void;
 }) {
+  const showStatus = onPublish !== undefined || onUnpublish !== undefined;
+  const published = isPublished !== false;
+
   const primary = onPrimaryClick ? (
     <button
       type="button"
@@ -104,32 +109,42 @@ export function ModuleItemCard({
   );
 
   return (
-    <article className="neu-panel flex min-w-0 flex-col gap-3 rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-4 shadow-[var(--shadow-button)] sm:gap-3.5 sm:p-5">
+    <article className="neu-panel relative flex min-w-0 flex-col gap-3 rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-4 shadow-[var(--shadow-button)] sm:gap-3.5 sm:p-5">
+      {/* Status dot — top-right corner */}
+      {showStatus && (
+        <span
+          title={published ? publishedLabel : unpublishedLabel}
+          className={`absolute right-4 top-4 h-2.5 w-2.5 rounded-full ring-2 ring-[var(--background)] ${
+            published ? "bg-emerald-500" : "bg-red-500"
+          }`}
+          aria-hidden
+        />
+      )}
       {primary}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-solid [border-color:var(--divider-soft)] pt-3">
         <div>
-          {(onPublish || onUnpublish) ? (
-            isPublished === false ? (
-              <button
-                type="button"
-                onClick={() => onPublish?.()}
-                disabled={busy}
-                title="Click to publish"
-                aria-label={publishAriaLabel ?? "Publish"}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:opacity-50 bg-[var(--accent-fill)] text-[var(--foreground-secondary)] hover:bg-[var(--accent-fill-active)] hover:text-[var(--text-heading)]">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--foreground-secondary)]" />
-                Draft
-              </button>
-            ) : (
+          {showStatus ? (
+            published ? (
               <button
                 type="button"
                 onClick={() => onUnpublish?.()}
                 disabled={busy}
                 title="Click to unpublish"
-                aria-label={unpublishAriaLabel ?? "Unpublish"}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:opacity-50 bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 active:bg-emerald-500/30">
+                aria-label={unpublishAriaLabel ?? `Unpublish — currently ${publishedLabel}`}
+                className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold text-emerald-700 transition disabled:opacity-50 hover:bg-emerald-500/25 active:bg-emerald-500/30 dark:text-emerald-400">
                 <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                Published
+                {publishedLabel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onPublish?.()}
+                disabled={busy}
+                title="Click to publish"
+                aria-label={publishAriaLabel ?? `Publish — currently ${unpublishedLabel}`}
+                className="flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1 text-[11px] font-semibold text-red-600 transition disabled:opacity-50 hover:bg-red-500/20 active:bg-red-500/25 dark:text-red-400">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                {unpublishedLabel}
               </button>
             )
           ) : null}

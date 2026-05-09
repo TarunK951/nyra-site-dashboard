@@ -344,16 +344,7 @@ export function TestimonialsEditor({
             return (
             <ModuleItemCard
               key={row.id}
-              label={
-                <span className="flex items-center gap-2">
-                  <span>{row.type === "video" ? "Video" : "Text"}</span>
-                  {!isVisible && (
-                    <span className="rounded-full border border-[var(--divider-soft)] bg-[var(--background-subtle)] px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-[var(--foreground-secondary)]">
-                      Hidden
-                    </span>
-                  )}
-                </span>
-              }
+              label={row.type === "video" ? "Video" : "Text"}
               title={row.name ?? row.id}
               isPublished={isVisible}
               onView={() => setPreview(row)}
@@ -362,6 +353,8 @@ export function TestimonialsEditor({
               onDelete={() => setDeleteTarget(row)}
               onUnpublish={() => void setItemVisible(row, false)}
               onPublish={() => void setItemVisible(row, true)}
+              publishedLabel="Visible"
+              unpublishedLabel="Hidden"
               busy={busy}
               viewAriaLabel={`Preview testimonial from ${row.name ?? row.id}`}
               editAriaLabel={`Edit testimonial ${row.name ?? row.id}`}

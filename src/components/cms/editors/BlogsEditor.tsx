@@ -498,16 +498,7 @@ export function BlogsEditor({
             return (
             <ModuleItemCard
               key={row.id}
-              label={
-                <span className="flex items-center gap-2">
-                  <span>{(row.category ?? "").trim() || "Uncategorized"}</span>
-                  {!isPublished && (
-                    <span className="rounded-full border border-[var(--divider-soft)] bg-[var(--background-subtle)] px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-[var(--foreground-secondary)]">
-                      Draft
-                    </span>
-                  )}
-                </span>
-              }
+              label={(row.category ?? "").trim() || "Uncategorized"}
               title={row.title}
               isPublished={isPublished}
               onView={() => setBlogPreview(row)}
@@ -516,6 +507,8 @@ export function BlogsEditor({
               onDelete={() => setDeleteTarget(row)}
               onUnpublish={() => void setPostStatus(row, "draft")}
               onPublish={() => void setPostStatus(row, "published")}
+              publishedLabel="Published"
+              unpublishedLabel="Draft"
               busy={busy}
               viewAriaLabel={`Preview blog post ${row.title}`}
               editAriaLabel={`Edit ${row.title ?? "post"}`}
