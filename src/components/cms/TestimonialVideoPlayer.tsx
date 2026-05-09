@@ -92,7 +92,7 @@ export function TestimonialVideoPlayer({
   if (!resolved) {
     return (
       <div
-        className={`flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-100/80 text-[13px] text-slate-500 dark:border-slate-600 dark:bg-zinc-900/80 dark:text-zinc-400 ${className}`}>
+        className={`flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-[var(--divider-soft)] bg-[var(--accent-fill)] text-[13px] text-[var(--foreground-secondary)] ${className}`}>
         No video selected
       </div>
     );

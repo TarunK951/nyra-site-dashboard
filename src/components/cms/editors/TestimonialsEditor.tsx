@@ -564,7 +564,7 @@ export function TestimonialsEditor({
                         Choose a video (and optional poster image), then click
                         Upload to server. If the API returns "too large"
                         (413), the dashboard retries via cloud storage when{" "}
-                        <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
+                        <code className="rounded bg-[var(--accent-fill)] px-1">
                           BLOB_READ_WRITE_TOKEN
                         </code>{" "}
                         is set.

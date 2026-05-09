@@ -96,7 +96,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="absolute -right-1 -top-1 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-solid border-black/[0.08] bg-white text-[22px] leading-none text-[var(--text-muted)] shadow-md transition hover:bg-slate-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:hover:bg-zinc-800 sm:right-0 sm:top-0">
+            className="absolute -right-1 -top-1 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-solid border-[var(--divider-soft)] bg-[var(--surface)] text-[22px] leading-none text-[var(--foreground-secondary)] shadow-[var(--shadow-button)] transition hover:bg-[var(--accent-fill)] sm:right-0 sm:top-0">
             ×
           </button>
           <div className="dashboard-scroll max-h-[min(88vh,860px)] overflow-y-auto px-1 pb-2 pt-10 sm:px-2 sm:pb-4 sm:pt-12">
