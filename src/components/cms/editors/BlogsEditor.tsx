@@ -20,7 +20,7 @@ import {
   inputClass,
 } from "../shared";
 import type { EditorProps } from "../editor-types";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 const COLLECTION = "posts";
 
@@ -140,11 +140,6 @@ function validateBlogForm(form: FormState): Partial<Record<BlogFieldKey, string>
   return e;
 }
 
-/** Posts that appear on the public site when the module is published (per API guide). */
-function publishedPosts(posts: BlogPost[]): BlogPost[] {
-  return posts.filter((p) => p.status === "published");
-}
-
 export function BlogsEditor({
   token,
   moduleKey,
@@ -154,7 +149,7 @@ export function BlogsEditor({
   onError,
 }: EditorProps) {
   const allPosts = blogsPosts(moduleData);
-  const tableRows = useMemo(() => publishedPosts(allPosts), [allPosts]);
+  const tableRows = allPosts;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -456,6 +451,34 @@ export function BlogsEditor({
     token,
   ]);
 
+  const setPostStatus = useCallback(
+    async (post: BlogPost, status: "published" | "draft") => {
+      setBusy(true);
+      try {
+        const next = await updateCollectionItem(
+          token,
+          moduleKey,
+          COLLECTION,
+          post.id,
+          moduleData.version,
+          { ...post, status },
+        );
+        const mod = await ensureModuleAfterMutation(token, moduleKey, next);
+        onModuleUpdated(mod);
+      } catch (e) {
+        if (e instanceof ConflictError) {
+          await reloadModule();
+          onError(`${e.message} Reloaded latest version.`);
+        } else {
+          onError(e instanceof Error ? e.message : "Could not update post.");
+        }
+      } finally {
+        setBusy(false);
+      }
+    },
+    [moduleData.version, moduleKey, onError, onModuleUpdated, reloadModule, token],
+  );
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex justify-start">
@@ -466,24 +489,39 @@ export function BlogsEditor({
 
       {tableRows.length === 0 ? (
         <div className="neu-panel rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] px-5 py-12 text-center text-[15px] leading-[1.65] text-[var(--foreground-secondary)] shadow-[var(--shadow-button)] sm:py-14">
-          No published posts yet. Add a post (status will be saved as published)
-          — it will show here after the blogs module is published on the site.
+          No posts yet. Add a post above.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
-          {tableRows.map((row) => (
+          {tableRows.map((row) => {
+            const isPublished = row.status === "published";
+            return (
             <ModuleItemCard
               key={row.id}
-              label={(row.category ?? "").trim() || "Uncategorized"}
+              label={
+                <span className="flex items-center gap-2">
+                  <span>{(row.category ?? "").trim() || "Uncategorized"}</span>
+                  {!isPublished && (
+                    <span className="rounded-full bg-[var(--accent-fill)] px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-[var(--foreground-secondary)]">
+                      Draft
+                    </span>
+                  )}
+                </span>
+              }
               title={row.title}
+              isPublished={isPublished}
               onView={() => setBlogPreview(row)}
               onPrimaryClick={() => setBlogPreview(row)}
               onEdit={() => openEdit(row)}
               onDelete={() => setDeleteTarget(row)}
+              onUnpublish={() => void setPostStatus(row, "draft")}
+              onPublish={() => void setPostStatus(row, "published")}
               busy={busy}
               viewAriaLabel={`Preview blog post ${row.title}`}
               editAriaLabel={`Edit ${row.title ?? "post"}`}
-              deleteAriaLabel={`Delete ${row.title ?? "post"}`}>
+              deleteAriaLabel={`Delete ${row.title ?? "post"}`}
+              unpublishAriaLabel={`Unpublish ${row.title ?? "post"}`}
+              publishAriaLabel={`Publish ${row.title ?? "post"}`}>
               <p className="font-mono text-[11px] text-[var(--text-muted)]">
                 /{row.slug}
               </p>
@@ -500,7 +538,8 @@ export function BlogsEditor({
                   : ""}
               </p>
             </ModuleItemCard>
-          ))}
+            );
+          })}
         </div>
       )}
 

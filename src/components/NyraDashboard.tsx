@@ -9,6 +9,7 @@ import {
   useMemo,
   useState,
   type FormEvent,
+  type ReactNode,
 } from "react";
 
 import { ModuleWorkspace } from "@/components/cms/ModuleWorkspace";
@@ -34,15 +35,73 @@ import {
   type NavId,
 } from "@/lib/content-modules";
 import { getModuleItemCount } from "@/lib/content-types";
-const MODULE_ICONS: Record<ModuleKey, string> = {
-  blogs: "◇",
-  testimonials: "◆",
-  team: "◎",
-  faq: "?",
-  features: "✦",
-  how_it_works: "⚙",
-  sales_team: "☎",
-  proven_impact: "▤",
+const IconOverview = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="5" height="5" rx="1" />
+    <rect x="9" y="2" width="5" height="5" rx="1" />
+    <rect x="2" y="9" width="5" height="5" rx="1" />
+    <rect x="9" y="9" width="5" height="5" rx="1" />
+  </svg>
+);
+const IconBlogs = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6L9 2z" />
+    <path d="M9 2v4h4" />
+    <line x1="5" y1="9" x2="11" y2="9" />
+    <line x1="5" y1="11.5" x2="8.5" y2="11.5" />
+  </svg>
+);
+const IconTestimonials = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 1.5l1.7 3.4 3.8.55-2.75 2.68.65 3.77L8 9.9l-3.4 1.8.65-3.77L2.5 5.45l3.8-.55z" />
+  </svg>
+);
+const IconTeam = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="6" cy="5" r="2.5" />
+    <path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5" />
+    <path d="M11 7.5a2 2 0 0 0 0 4M13 7.5a2 2 0 0 1 2 2v3" />
+  </svg>
+);
+const IconFaq = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="8" cy="8" r="6" />
+    <path d="M6.2 6a2 2 0 0 1 3.8.8c0 1.4-2 2-2 2.8" />
+    <circle cx="8" cy="12" r="0.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+const IconFeatures = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="8,1 10.2,5.5 15,6.2 11.5,9.6 12.4,14.4 8,12 3.6,14.4 4.5,9.6 1,6.2 5.8,5.5" />
+  </svg>
+);
+const IconHowItWorks = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="8" cy="8" r="3" />
+    <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" />
+  </svg>
+);
+const IconSalesTeam = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 2h2.5l1 2.5-1.5 1a8 8 0 0 0 3.5 3.5l1-1.5L12 8.5V11a1 1 0 0 1-1 1C5.4 12 2 7.2 2 3a1 1 0 0 1 1-1z" />
+  </svg>
+);
+const IconProvenImpact = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="2,12 5,8 8,10 11,5 14,7" />
+    <line x1="2" y1="14" x2="14" y2="14" />
+  </svg>
+);
+
+const MODULE_ICONS: Record<ModuleKey, ReactNode> = {
+  blogs: <IconBlogs />,
+  testimonials: <IconTestimonials />,
+  team: <IconTeam />,
+  faq: <IconFaq />,
+  features: <IconFeatures />,
+  how_it_works: <IconHowItWorks />,
+  sales_team: <IconSalesTeam />,
+  proven_impact: <IconProvenImpact />,
 };
 
 const HIDDEN_MODULES = new Set<ModuleKey>([
@@ -56,7 +115,7 @@ const HIDDEN_MODULES = new Set<ModuleKey>([
 const VISIBLE_MODULE_KEYS = MODULE_KEYS.filter((k) => !HIDDEN_MODULES.has(k));
 
 const nav = [
-  { id: "overview" as const, label: "Overview", icon: "◆" },
+  { id: "overview" as const, label: "Overview", icon: <IconOverview /> },
   ...VISIBLE_MODULE_KEYS.map((id) => ({
     id,
     label: MODULE_LABELS[id],
@@ -311,11 +370,6 @@ export function NyraDashboard() {
       return String(moduleData);
     }
   }, [moduleData]);
-
-  const copyJson = () => {
-    if (!jsonPreview || typeof navigator === "undefined") return;
-    void navigator.clipboard.writeText(jsonPreview);
-  };
 
   if (!authReady) {
     return (
@@ -642,22 +696,6 @@ export function NyraDashboard() {
                     }
                     className="neu-btn-primary px-5 py-2 text-[12px] disabled:opacity-40">
                     Publish
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleUnpublish}
-                    disabled={
-                      moduleLoading || !moduleData || moduleData.status !== "published"
-                    }
-                    className="neu-btn-default px-4 py-2 text-[12px] disabled:opacity-40">
-                    Unpublish
-                  </button>
-                  <button
-                    type="button"
-                    onClick={copyJson}
-                    disabled={!jsonPreview}
-                    className="neu-btn-default px-4 py-2 text-[12px] disabled:opacity-40">
-                    Copy JSON
                   </button>
                 </div>
               </div>
