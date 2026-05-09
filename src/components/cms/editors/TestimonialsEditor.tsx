@@ -353,8 +353,8 @@ export function TestimonialsEditor({
               onDelete={() => setDeleteTarget(row)}
               onUnpublish={() => void setItemVisible(row, false)}
               onPublish={() => void setItemVisible(row, true)}
-              publishedLabel="Visible"
-              unpublishedLabel="Hidden"
+              publishedLabel="Hide"
+              unpublishedLabel="Show"
               busy={busy}
               viewAriaLabel={`Preview testimonial from ${row.name ?? row.id}`}
               editAriaLabel={`Edit testimonial ${row.name ?? row.id}`}

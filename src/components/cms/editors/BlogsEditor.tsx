@@ -507,8 +507,8 @@ export function BlogsEditor({
               onDelete={() => setDeleteTarget(row)}
               onUnpublish={() => void setPostStatus(row, "draft")}
               onPublish={() => void setPostStatus(row, "published")}
-              publishedLabel="Published"
-              unpublishedLabel="Draft"
+              publishedLabel="Unpublish"
+              unpublishedLabel="Publish"
               busy={busy}
               viewAriaLabel={`Preview blog post ${row.title}`}
               editAriaLabel={`Edit ${row.title ?? "post"}`}

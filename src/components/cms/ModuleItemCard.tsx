@@ -38,8 +38,8 @@ export function ModuleItemCard({
   onUnpublish,
   onPublish,
   isPublished,
-  publishedLabel = "Published",
-  unpublishedLabel = "Draft",
+  publishedLabel = "Unpublish",
+  unpublishedLabel = "Publish",
   busy,
   viewAriaLabel,
   editAriaLabel,
@@ -130,9 +130,9 @@ export function ModuleItemCard({
                 onClick={() => onUnpublish?.()}
                 disabled={busy}
                 title="Click to unpublish"
-                aria-label={unpublishAriaLabel ?? `Unpublish — currently ${publishedLabel}`}
-                className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold text-emerald-700 transition disabled:opacity-50 hover:bg-emerald-500/25 active:bg-emerald-500/30 dark:text-emerald-400">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                aria-label={unpublishAriaLabel ?? `Unpublish`}
+                className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-3 py-1 text-[11px] font-semibold text-amber-700 transition disabled:opacity-50 hover:bg-amber-500/20 active:bg-amber-500/28 dark:text-amber-400">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
                 {publishedLabel}
               </button>
             ) : (
@@ -141,9 +141,9 @@ export function ModuleItemCard({
                 onClick={() => onPublish?.()}
                 disabled={busy}
                 title="Click to publish"
-                aria-label={publishAriaLabel ?? `Publish — currently ${unpublishedLabel}`}
-                className="flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1 text-[11px] font-semibold text-red-600 transition disabled:opacity-50 hover:bg-red-500/20 active:bg-red-500/25 dark:text-red-400">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                aria-label={publishAriaLabel ?? `Publish`}
+                className="flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-3 py-1 text-[11px] font-semibold text-emerald-700 transition disabled:opacity-50 hover:bg-emerald-500/20 active:bg-emerald-500/28 dark:text-emerald-400">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                 {unpublishedLabel}
               </button>
             )
