@@ -131,7 +131,7 @@ export function ModuleItemCard({
                 disabled={busy}
                 title="Click to unpublish"
                 aria-label={unpublishAriaLabel ?? `Unpublish`}
-                className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-3 py-1 text-[11px] font-semibold text-amber-700 transition disabled:opacity-50 hover:bg-amber-500/20 active:bg-amber-500/28 dark:text-amber-400">
+                className="flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-[11px] font-semibold text-amber-700 transition disabled:opacity-50 hover:bg-amber-500/25 active:bg-amber-500/30">
                 <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
                 {publishedLabel}
               </button>
@@ -142,7 +142,7 @@ export function ModuleItemCard({
                 disabled={busy}
                 title="Click to publish"
                 aria-label={publishAriaLabel ?? `Publish`}
-                className="flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-3 py-1 text-[11px] font-semibold text-emerald-700 transition disabled:opacity-50 hover:bg-emerald-500/20 active:bg-emerald-500/28 dark:text-emerald-400">
+                className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold text-emerald-700 transition disabled:opacity-50 hover:bg-emerald-500/25 active:bg-emerald-500/30">
                 <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                 {unpublishedLabel}
               </button>

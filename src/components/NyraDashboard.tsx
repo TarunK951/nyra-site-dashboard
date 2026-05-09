@@ -692,7 +692,7 @@ export function NyraDashboard() {
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${
                             moduleData.status === "published"
-                              ? "bg-[color-mix(in_srgb,var(--trend-up)_12%,transparent)] text-[var(--trend-up)]"
+                              ? "bg-emerald-500/15 text-emerald-700"
                               : "border border-[var(--divider-soft)] text-[var(--foreground-secondary)]"
                           }`}>
                           {moduleData.status ?? "unknown"}
@@ -713,15 +713,6 @@ export function NyraDashboard() {
                     disabled={moduleLoading}
                     className="neu-btn-default px-4 py-2 text-[12px] disabled:opacity-50">
                     {moduleLoading ? "Loading…" : "Refresh"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handlePublish}
-                    disabled={
-                      moduleLoading || !moduleData || moduleData.status === "published"
-                    }
-                    className="neu-btn-primary px-5 py-2 text-[12px] disabled:opacity-40">
-                    Publish
                   </button>
                 </div>
               </div>
