@@ -107,23 +107,31 @@ export function ModuleItemCard({
     <article className="neu-panel flex min-w-0 flex-col gap-3 rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-4 shadow-[var(--shadow-button)] sm:gap-3.5 sm:p-5">
       {primary}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-solid [border-color:var(--divider-soft)] pt-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {onUnpublish && isPublished !== false ? (
-            <ToolbarButton
-              onClick={onUnpublish}
-              disabled={busy}
-              aria-label={unpublishAriaLabel ?? "Unpublish"}>
-              Unpublish
-            </ToolbarButton>
-          ) : null}
-          {onPublish && isPublished === false ? (
-            <ToolbarButton
-              variant="primary"
-              onClick={onPublish}
-              disabled={busy}
-              aria-label={publishAriaLabel ?? "Publish"}>
-              Publish
-            </ToolbarButton>
+        <div>
+          {(onPublish || onUnpublish) ? (
+            isPublished === false ? (
+              <button
+                type="button"
+                onClick={() => onPublish?.()}
+                disabled={busy}
+                title="Click to publish"
+                aria-label={publishAriaLabel ?? "Publish"}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:opacity-50 bg-[var(--accent-fill)] text-[var(--foreground-secondary)] hover:bg-[var(--accent-fill-active)] hover:text-[var(--text-heading)]">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--foreground-secondary)]" />
+                Draft
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onUnpublish?.()}
+                disabled={busy}
+                title="Click to unpublish"
+                aria-label={unpublishAriaLabel ?? "Unpublish"}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:opacity-50 bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 active:bg-emerald-500/30">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                Published
+              </button>
+            )
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">

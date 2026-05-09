@@ -381,14 +381,6 @@ export function NyraDashboard() {
       ? "Manage site modules via the content API. Publish changes separately from editing."
       : MODULE_SUBTITLES[active as ModuleKey];
 
-  const jsonPreview = useMemo(() => {
-    if (!moduleData) return "";
-    try {
-      return JSON.stringify(moduleData, null, 2);
-    } catch {
-      return String(moduleData);
-    }
-  }, [moduleData]);
 
   if (!authReady) {
     return (
@@ -586,12 +578,22 @@ export function NyraDashboard() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex min-h-[var(--shell-header-min-h)] shrink-0 flex-col justify-center border-b border-solid [border-color:var(--divider-soft)] bg-[var(--background)] py-3 ps-5 pe-5 sm:ps-6 sm:pe-6 md:ps-8 md:pe-8">
           <div className="flex w-full min-w-0 flex-row items-center justify-between gap-3">
+            {/* Mobile: logo + current section name */}
             <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
               <div className="relative h-7 w-11 shrink-0">
                 <Image src="/nyraai-logo.png" alt="" width={96} height={40} className="h-7 w-11 object-contain object-left" priority aria-hidden />
               </div>
               <p className="truncate text-[13px] font-semibold tracking-tight text-[var(--text-heading)]">
                 {nav.find((n) => n.id === active)?.label ?? "Dashboard"}
+              </p>
+            </div>
+            {/* Desktop: persistent title */}
+            <div className="hidden md:flex min-w-0 flex-1 flex-col">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground-secondary)]">
+                NyraAI
+              </p>
+              <p className="text-[15px] font-semibold tracking-tight text-[var(--text-heading)]">
+                Website Management
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -684,14 +686,14 @@ export function NyraDashboard() {
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {moduleData ? (
                       <>
-                        <span className="rounded-full bg-[var(--accent-fill)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--foreground-secondary)]">
+                        <span className="rounded-full border border-[var(--divider-soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--foreground-secondary)]">
                           v{moduleData.version}
                         </span>
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${
                             moduleData.status === "published"
-                              ? "bg-emerald-500/15 text-emerald-400"
-                              : "bg-[var(--accent-fill)] text-[var(--foreground-secondary)]"
+                              ? "bg-[color-mix(in_srgb,var(--trend-up)_12%,transparent)] text-[var(--trend-up)]"
+                              : "border border-[var(--divider-soft)] text-[var(--foreground-secondary)]"
                           }`}>
                           {moduleData.status ?? "unknown"}
                         </span>
@@ -739,14 +741,6 @@ export function NyraDashboard() {
                     reloadModule={loadModule}
                     onError={setError}
                   />
-                  <details className="group neu-panel p-5 sm:p-6">
-                    <summary className="cursor-pointer text-[12px] font-semibold text-[var(--foreground-secondary)]">
-                      Raw module JSON
-                    </summary>
-                    <pre className="dashboard-scroll mt-4 max-h-[min(40vh,360px)] overflow-auto border-t border-solid [border-color:var(--divider-soft)] pt-4 text-[11px] leading-relaxed text-[var(--text-heading)] sm:text-[12px]">
-                      {jsonPreview || "{}"}
-                    </pre>
-                  </details>
                 </div>
               ) : (
                 <p className="text-[14px] text-[var(--foreground-secondary)]">

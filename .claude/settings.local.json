@@ -9,7 +9,9 @@
       "Bash(Get-ChildItem -Path \"d:\\\\nyra-site-dashboard\" -Directory)",
       "Bash(Select-Object -First 20)",
       "Bash(Select-String -Pattern \"lucide|heroicons|react-icons|phosphor|tabler\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\nyra-site-dashboard\\\\src\\\\components\\\\cms\\\\editors\" -Filter \"*.tsx\")",
+      "Bash(Select-Object -ExpandProperty Name)"
     ]
   }
 }
