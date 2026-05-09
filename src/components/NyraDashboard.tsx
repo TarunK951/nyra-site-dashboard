@@ -45,9 +45,19 @@ const MODULE_ICONS: Record<ModuleKey, string> = {
   proven_impact: "▤",
 };
 
+const HIDDEN_MODULES = new Set<ModuleKey>([
+  "features",
+  "how_it_works",
+  "sales_team",
+  "proven_impact",
+  "team",
+]);
+
+const VISIBLE_MODULE_KEYS = MODULE_KEYS.filter((k) => !HIDDEN_MODULES.has(k));
+
 const nav = [
   { id: "overview" as const, label: "Overview", icon: "◆" },
-  ...MODULE_KEYS.map((id) => ({
+  ...VISIBLE_MODULE_KEYS.map((id) => ({
     id,
     label: MODULE_LABELS[id],
     icon: MODULE_ICONS[id],
@@ -164,7 +174,7 @@ export function NyraDashboard() {
     setError(null);
     try {
       const settled = await Promise.allSettled(
-        MODULE_KEYS.map(async (key) => {
+        VISIBLE_MODULE_KEYS.map(async (key) => {
           const mod = await fetchModule(token, key);
           return { key, count: getModuleItemCount(mod, key) };
         }),
@@ -181,7 +191,7 @@ export function NyraDashboard() {
       setOverviewCounts(next);
       if (failed > 0) {
         setError(
-          failed === MODULE_KEYS.length
+          failed === VISIBLE_MODULE_KEYS.length
             ? "Could not load module counts. Check the API and your token."
             : `Could not load ${failed} module(s). Some counts may be missing.`,
         );
@@ -512,42 +522,35 @@ export function NyraDashboard() {
           </div>
         </header>
 
-        <main className="dashboard-scroll min-h-0 flex-1 space-y-8 overflow-x-hidden overflow-y-auto overscroll-y-contain p-5 sm:p-6 md:space-y-10 md:p-8">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
-            <div className="min-w-0">
-              {active === "overview" && (
-                <span className="neu-pill mb-4 inline-flex">
-                  <span aria-hidden>◆</span> Overview
-                </span>
-              )}
-              <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-heading)] sm:text-[1.75rem]">
-                {headerTitle}
-              </h1>
-              <p className="mt-3 max-w-2xl text-[15px] font-normal leading-[1.65] text-[var(--foreground-secondary)]">
-                {headerSubtitle}
-              </p>
-            </div>
-          </div>
+        <main className="dashboard-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain p-5 sm:p-6 md:p-8">
 
           {error && (
             <div
-              className="rounded-[var(--radius-panel)] bg-[color-mix(in_srgb,var(--foreground)_6%,var(--surface))] px-5 py-4 text-[14px] leading-relaxed text-[var(--text-heading)] shadow-[var(--shadow-button)]"
+              className="mb-6 rounded-[var(--radius-panel)] bg-[color-mix(in_srgb,var(--foreground)_6%,var(--surface))] px-5 py-4 text-[14px] leading-relaxed text-[var(--text-heading)] shadow-[var(--shadow-button)]"
               role="alert">
               {error}
             </div>
           )}
 
           {active === "overview" ? (
-            <section className="space-y-6 sm:space-y-8">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <span className="neu-pill">
-                  <span aria-hidden>◇</span> Modules
-                </span>
+            <section className="space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <span className="neu-pill mb-3 inline-flex">
+                    <span aria-hidden>◆</span> Overview
+                  </span>
+                  <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-heading)]">
+                    Website content
+                  </h1>
+                  <p className="mt-1 text-[14px] text-[var(--foreground-secondary)]">
+                    Click a module to start editing.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => void loadOverviewCounts()}
                   disabled={overviewLoading}
-                  className="neu-btn-default px-5 py-2.5 text-[12px] disabled:opacity-50">
+                  className="neu-btn-default shrink-0 px-5 py-2.5 text-[12px] disabled:opacity-50">
                   {overviewLoading ? "Refreshing…" : "Refresh"}
                 </button>
               </div>
@@ -560,12 +563,12 @@ export function NyraDashboard() {
                           Module
                         </th>
                         <th className="neu-surface-inset-deep px-5 py-4 text-right last:rounded-tr-[var(--radius-panel)]">
-                          Count
+                          Items
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {MODULE_KEYS.map((key) => {
+                      {VISIBLE_MODULE_KEYS.map((key) => {
                         const count = overviewCounts[key];
                         const hasCount = typeof count === "number";
                         return (
@@ -577,7 +580,7 @@ export function NyraDashboard() {
                             <td className="px-5 py-4 font-medium text-[var(--text-heading)]">
                               {OVERVIEW_MODULE_LABELS[key]}
                             </td>
-                            <td className="px-5 py-4 text-right tabular-nums text-[var(--text-heading)]">
+                            <td className="px-5 py-4 text-right tabular-nums text-[var(--foreground-secondary)]">
                               {overviewLoading && !hasCount
                                 ? "…"
                                 : hasCount
@@ -591,40 +594,45 @@ export function NyraDashboard() {
                   </table>
                 </div>
               </div>
-              <p className="text-[13px] leading-[1.65] text-[var(--foreground-secondary)]">
-                Counts reflect items saved in each module (posts, list entries,
-                etc.). Click a row to open the module. Public site
-                should use{" "}
-                <code className="neu-surface-inset rounded-lg px-2 py-0.5 text-[12px] text-[var(--foreground)]">
-                  /api/public-content
-                </code>{" "}
-                for published content.
-              </p>
             </section>
           ) : (
-            <section className="space-y-6 sm:space-y-8">
-              <div className="flex flex-wrap items-center gap-3">
-                  {moduleData && (
-                    <>
-                      <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] font-medium text-[var(--text-heading)]">
-                        v{moduleData.version}
+            <section className="space-y-6">
+              {/* Page header: title + actions in one row */}
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-heading)]">
+                    {headerTitle}
+                  </h1>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {moduleData ? (
+                      <>
+                        <span className="rounded-full bg-[var(--accent-fill)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--foreground-secondary)]">
+                          v{moduleData.version}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${
+                            moduleData.status === "published"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : "bg-[var(--accent-fill)] text-[var(--foreground-secondary)]"
+                          }`}>
+                          {moduleData.status ?? "unknown"}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[13px] text-[var(--foreground-secondary)]">
+                        {moduleLoading ? "Loading…" : "No data"}
                       </span>
-                      <span className="neu-surface-inset rounded-[var(--radius-button)] px-4 py-2 text-[12px] capitalize text-[var(--foreground-secondary)]">
-                        {moduleData.status ?? "unknown"}
-                      </span>
-                      <span className="text-[12px] text-[var(--foreground-secondary)]">
-                        {moduleSummaryLine(moduleData)}
-                      </span>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-3">
+
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => void loadModule()}
                     disabled={moduleLoading}
-                    className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-50">
-                    {moduleLoading ? "Loading…" : "Refetch module"}
+                    className="neu-btn-default px-4 py-2 text-[12px] disabled:opacity-50">
+                    {moduleLoading ? "Loading…" : "Refresh"}
                   </button>
                   <button
                     type="button"
@@ -632,7 +640,7 @@ export function NyraDashboard() {
                     disabled={
                       moduleLoading || !moduleData || moduleData.status === "published"
                     }
-                    className="neu-btn-primary px-5 py-2.5 text-[12px] disabled:opacity-40">
+                    className="neu-btn-primary px-5 py-2 text-[12px] disabled:opacity-40">
                     Publish
                   </button>
                   <button
@@ -641,23 +649,26 @@ export function NyraDashboard() {
                     disabled={
                       moduleLoading || !moduleData || moduleData.status !== "published"
                     }
-                    className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
+                    className="neu-btn-default px-4 py-2 text-[12px] disabled:opacity-40">
                     Unpublish
                   </button>
                   <button
                     type="button"
                     onClick={copyJson}
                     disabled={!jsonPreview}
-                    className="neu-btn-default px-4 py-2.5 text-[12px] disabled:opacity-40">
+                    className="neu-btn-default px-4 py-2 text-[12px] disabled:opacity-40">
                     Copy JSON
                   </button>
+                </div>
               </div>
+
+              {/* Content area */}
               {moduleLoading && !moduleData ? (
                 <p className="text-[14px] leading-relaxed text-[var(--foreground-secondary)]">
                   Loading module…
                 </p>
               ) : moduleData && token ? (
-                <div className="space-y-6 sm:space-y-8">
+                <div className="space-y-6">
                   <ModuleWorkspace
                     moduleKey={active as ModuleKey}
                     token={token}

@@ -5,7 +5,9 @@
       "Bash(netstat -ano)",
       "Bash(taskkill *)",
       "Bash(npx tsc *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\nyra-site-dashboard\" -Directory)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }
