@@ -35,10 +35,15 @@ export function ModuleItemCard({
   onView,
   onEdit,
   onDelete,
+  onUnpublish,
+  onPublish,
+  isPublished,
   busy,
   viewAriaLabel,
   editAriaLabel,
   deleteAriaLabel,
+  unpublishAriaLabel,
+  publishAriaLabel,
   /** Clicking the header/body (not action buttons) runs this — e.g. open the same preview as View. */
   onPrimaryClick,
 }: {
@@ -49,10 +54,15 @@ export function ModuleItemCard({
   onView?: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onUnpublish?: () => void;
+  onPublish?: () => void;
+  isPublished?: boolean;
   busy: boolean;
   viewAriaLabel?: string;
   editAriaLabel: string;
   deleteAriaLabel: string;
+  unpublishAriaLabel?: string;
+  publishAriaLabel?: string;
   onPrimaryClick?: () => void;
 }) {
   const primary = onPrimaryClick ? (
@@ -96,25 +106,46 @@ export function ModuleItemCard({
   return (
     <article className="neu-panel flex min-w-0 flex-col gap-3 rounded-[var(--radius-panel)] border border-solid [border-color:var(--divider-soft)] p-4 shadow-[var(--shadow-button)] sm:gap-3.5 sm:p-5">
       {primary}
-      <div className="mt-auto flex flex-wrap items-center justify-end gap-2 border-t border-solid [border-color:var(--divider-soft)] pt-3">
-        {onView ? (
-          <ToolbarButton
-            onClick={onView}
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-solid [border-color:var(--divider-soft)] pt-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {onUnpublish && isPublished !== false ? (
+            <ToolbarButton
+              onClick={onUnpublish}
+              disabled={busy}
+              aria-label={unpublishAriaLabel ?? "Unpublish"}>
+              Unpublish
+            </ToolbarButton>
+          ) : null}
+          {onPublish && isPublished === false ? (
+            <ToolbarButton
+              variant="primary"
+              onClick={onPublish}
+              disabled={busy}
+              aria-label={publishAriaLabel ?? "Publish"}>
+              Publish
+            </ToolbarButton>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {onView ? (
+            <ToolbarButton
+              onClick={onView}
+              disabled={busy}
+              aria-label={viewAriaLabel ?? "View"}>
+              View
+            </ToolbarButton>
+          ) : null}
+          <RowEditButton
+            onClick={onEdit}
             disabled={busy}
-            aria-label={viewAriaLabel ?? "View"}>
-            View
-          </ToolbarButton>
-        ) : null}
-        <RowEditButton
-          onClick={onEdit}
-          disabled={busy}
-          ariaLabel={editAriaLabel}
-        />
-        <RowDeleteButton
-          onClick={onDelete}
-          disabled={busy}
-          ariaLabel={deleteAriaLabel}
-        />
+            ariaLabel={editAriaLabel}
+          />
+          <RowDeleteButton
+            onClick={onDelete}
+            disabled={busy}
+            ariaLabel={deleteAriaLabel}
+          />
+        </div>
       </div>
     </article>
   );

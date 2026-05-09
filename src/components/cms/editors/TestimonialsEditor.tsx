@@ -183,7 +183,7 @@ export function TestimonialsEditor({
     if (editing.type === "video" && videoInputMode === "upload" && stagedVideoFile) {
       setFieldErrors({
         mediaUrl:
-          "Upload the staged video (and optional poster) with “Upload to server” before saving.",
+          'Upload the staged video (and optional poster) with "Upload to server" before saving.',
       });
       setFormError(null);
       return;
@@ -301,6 +301,31 @@ export function TestimonialsEditor({
     }
   };
 
+  const setItemVisible = async (item: TestimonialItem, visible: boolean) => {
+    setBusy(true);
+    try {
+      const next = await updateCollectionItem(
+        token,
+        moduleKey,
+        COLLECTION,
+        item.id,
+        moduleData.version,
+        { ...item, visible },
+      );
+      const mod = await ensureModuleAfterMutation(token, moduleKey, next);
+      onModuleUpdated(mod);
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        await reloadModule();
+        onError(`${e.message} Reloaded latest version.`);
+      } else {
+        onError(e instanceof Error ? e.message : "Could not update testimonial.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -314,21 +339,37 @@ export function TestimonialsEditor({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((row) => (
+          {items.map((row) => {
+            const isVisible = row.visible !== false;
+            return (
             <ModuleItemCard
               key={row.id}
-              label={row.type === "video" ? "Video" : "Text"}
+              label={
+                <span className="flex items-center gap-2">
+                  <span>{row.type === "video" ? "Video" : "Text"}</span>
+                  {!isVisible && (
+                    <span className="rounded-full bg-[var(--accent-fill)] px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-[var(--foreground-secondary)]">
+                      Hidden
+                    </span>
+                  )}
+                </span>
+              }
               title={row.name ?? row.id}
+              isPublished={isVisible}
               onView={() => setPreview(row)}
               onPrimaryClick={() => setPreview(row)}
               onEdit={() => openEdit(row)}
               onDelete={() => setDeleteTarget(row)}
+              onUnpublish={() => void setItemVisible(row, false)}
+              onPublish={() => void setItemVisible(row, true)}
               busy={busy}
               viewAriaLabel={`Preview testimonial from ${row.name ?? row.id}`}
               editAriaLabel={`Edit testimonial ${row.name ?? row.id}`}
-              deleteAriaLabel={`Delete testimonial ${row.name ?? row.id}`}>
+              deleteAriaLabel={`Delete testimonial ${row.name ?? row.id}`}
+              unpublishAriaLabel={`Hide testimonial from ${row.name ?? row.id}`}
+              publishAriaLabel={`Show testimonial from ${row.name ?? row.id}`}>
               <p className="line-clamp-3 italic text-[var(--foreground-secondary)]">
-                {row.quote?.trim() ? `“${row.quote.trim()}”` : "—"}
+                {row.quote?.trim() ? `"${row.quote.trim()}"` : "—"}
               </p>
               {(row.role ?? "").trim() ? (
                 <p className="mt-2 text-[12px] text-[var(--text-muted)]">
@@ -336,7 +377,8 @@ export function TestimonialsEditor({
                 </p>
               ) : null}
             </ModuleItemCard>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -527,7 +569,7 @@ export function TestimonialsEditor({
                       ) : null}
                       <p className="text-[12px] leading-relaxed text-[var(--foreground-secondary)]">
                         Choose a video (and optional poster image), then click
-                        Upload to server. If the API returns “too large”
+                        Upload to server. If the API returns "too large"
                         (413), the dashboard retries via cloud storage when{" "}
                         <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
                           BLOB_READ_WRITE_TOKEN
@@ -692,7 +734,7 @@ export function TestimonialsEditor({
         title="Delete testimonial?"
         message={
           deleteTarget
-            ? `Remove the testimonial from “${deleteTarget.name ?? deleteTarget.id}”? This cannot be undone.`
+            ? `Remove the testimonial from "${deleteTarget.name ?? deleteTarget.id}"? This cannot be undone.`
             : ""
         }
         confirmLabel="Delete"
