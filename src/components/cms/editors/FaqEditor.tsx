@@ -138,6 +138,30 @@ export function FaqEditor({
     }
   };
 
+  const setItemVisible = useCallback(
+    async (item: FaqItem, visible: boolean) => {
+      setBusy(true);
+      try {
+        const next = await updateCollectionItem(
+          token, moduleKey, COLLECTION, item.id, moduleData.version,
+          { ...item, visible },
+        );
+        const mod = await ensureModuleAfterMutation(token, moduleKey, next);
+        onModuleUpdated(mod);
+      } catch (e) {
+        if (e instanceof ConflictError) {
+          await reloadModule();
+          onError(`${e.message} Reloaded latest version.`);
+        } else {
+          onError(e instanceof Error ? e.message : "Could not update FAQ item.");
+        }
+      } finally {
+        setBusy(false);
+      }
+    },
+    [moduleData.version, moduleKey, onError, onModuleUpdated, reloadModule, token],
+  );
+
   return (
     <div className="space-y-4">
       <ToolbarButton
@@ -161,6 +185,7 @@ export function FaqEditor({
             <ModuleItemCard
               key={row.id}
               title={row.question ?? row.id}
+              isPublished={row.visible !== false}
               onEdit={() => {
                 setEditing({ ...row });
                 setFieldErrors({});
@@ -168,9 +193,13 @@ export function FaqEditor({
                 setModalOpen(true);
               }}
               onDelete={() => setDeleteTarget(row)}
+              onPublish={() => void setItemVisible(row, true)}
+              onUnpublish={() => void setItemVisible(row, false)}
               busy={busy}
               editAriaLabel={`Edit FAQ ${row.question ?? row.id}`}
-              deleteAriaLabel={`Delete FAQ ${row.question ?? row.id}`}>
+              deleteAriaLabel={`Delete FAQ ${row.question ?? row.id}`}
+              publishAriaLabel={`Publish FAQ ${row.question ?? row.id}`}
+              unpublishAriaLabel={`Unpublish FAQ ${row.question ?? row.id}`}>
               <p className="line-clamp-4">{row.answer?.trim() || "—"}</p>
             </ModuleItemCard>
           ))}
@@ -210,16 +239,6 @@ export function FaqEditor({
                 }}
               />
             </Field>
-            <label className="flex items-center gap-2 text-[13px]">
-              <input
-                type="checkbox"
-                checked={editing.visible !== false}
-                onChange={(e) =>
-                  setEditing({ ...editing, visible: e.target.checked })
-                }
-              />
-              Visible
-            </label>
             <div className="flex justify-end gap-2 pt-2">
               <ToolbarButton onClick={closeModal} disabled={busy}>
                 Cancel

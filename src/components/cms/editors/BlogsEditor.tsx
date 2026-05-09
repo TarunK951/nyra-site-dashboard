@@ -502,7 +502,7 @@ export function BlogsEditor({
                 <span className="flex items-center gap-2">
                   <span>{(row.category ?? "").trim() || "Uncategorized"}</span>
                   {!isPublished && (
-                    <span className="rounded-full bg-[var(--accent-fill)] px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-[var(--foreground-secondary)]">
+                    <span className="rounded-full border border-[var(--divider-soft)] bg-[var(--background-subtle)] px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-[var(--foreground-secondary)]">
                       Draft
                     </span>
                   )}
